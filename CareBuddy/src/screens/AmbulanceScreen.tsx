@@ -1,40 +1,56 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert, Dimensions, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 
-// Sample ambulance data
-const ambulanceTypes = [
+const { width } = Dimensions.get('window');
+
+// Sample ambulance service providers
+const ambulanceProviders = [
   {
     id: 1,
-    name: 'Basic Life Support',
-    description: 'Standard ambulance with basic medical equipment',
-    price: 200,
-    eta: '15-20 mins',
-    icon: 'car',
+    name: 'City Emergency Services',
+    contact: '+1 (555) 123-4567',
+    estimatedTime: '8-12 mins',
+    serviceType: 'Basic Life Support',
+    rating: 4.8,
+    distance: '2.3 km',
     available: true,
     features: ['Oxygen', 'First Aid', 'Stretcher', 'Basic Monitoring']
   },
   {
     id: 2,
-    name: 'Advanced Life Support',
-    description: 'Advanced ambulance with critical care equipment',
-    price: 350,
-    eta: '10-15 mins',
-    icon: 'medical',
+    name: 'Metro Ambulance Corp',
+    contact: '+1 (555) 234-5678',
+    estimatedTime: '5-8 mins',
+    serviceType: 'Advanced Life Support',
+    rating: 4.9,
+    distance: '1.8 km',
     available: true,
     features: ['Defibrillator', 'Ventilator', 'ECG Monitor', 'IV Support']
   },
   {
     id: 3,
-    name: 'Critical Care Unit',
-    description: 'Mobile ICU with specialized medical team',
-    price: 500,
-    eta: '5-10 mins',
-    icon: 'heart',
+    name: 'Critical Care Transport',
+    contact: '+1 (555) 345-6789',
+    estimatedTime: '3-5 mins',
+    serviceType: 'Critical Care Unit',
+    rating: 4.7,
+    distance: '0.9 km',
+    available: true,
+    features: ['ICU Equipment', 'Specialist Doctor', 'Advanced Monitoring']
+  },
+  {
+    id: 4,
+    name: 'Rapid Response Medical',
+    contact: '+1 (555) 456-7890',
+    estimatedTime: '12-15 mins',
+    serviceType: 'Basic Life Support',
+    rating: 4.6,
+    distance: '4.1 km',
     available: false,
-    features: ['ICU Equipment', 'Specialist Doctor', 'Advanced Monitoring', 'Emergency Surgery']
+    features: ['Oxygen', 'First Aid', 'Stretcher']
   },
 ];
 
@@ -46,31 +62,91 @@ const emergencyContacts = [
 ];
 
 export default function AmbulanceScreen() {
-  const [selectedAmbulance, setSelectedAmbulance] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState<any>(null);
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState('');
   const [emergencyType, setEmergencyType] = useState('');
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [providers, setProviders] = useState(ambulanceProviders);
+
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!patientName.trim()) {
+      errors.push('Patient name is required');
+    }
+    
+    if (!patientAge.trim()) {
+      errors.push('Patient age is required');
+    } else if (isNaN(Number(patientAge)) || Number(patientAge) < 0 || Number(patientAge) > 150) {
+      errors.push('Please enter a valid age (0-150)');
+    }
+    
+    if (!phoneNumber.trim()) {
+      errors.push('Phone number is required');
+    } else if (!/^[\+]?[1-9][\d]{0,15}$/.test(phoneNumber.replace(/[\s\-\(\)]/g, ''))) {
+      errors.push('Please enter a valid phone number');
+    }
+    
+    if (!emergencyType.trim()) {
+      errors.push('Emergency type is required');
+    }
+    
+    if (!location.trim()) {
+      errors.push('Location is required');
+    }
+    
+    return errors;
+  };
 
   const handleBookAmbulance = () => {
-    if (!selectedAmbulance) {
-      Alert.alert('Error', 'Please select an ambulance type');
-      return;
-    }
-    if (!patientName || !patientAge || !emergencyType || !location || !phoneNumber) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    const validationErrors = validateForm();
+    
+    if (validationErrors.length > 0) {
+      Alert.alert('Validation Error', validationErrors.join('\n'));
       return;
     }
 
     Alert.alert(
       'Confirm Booking',
-      `Book ${selectedAmbulance.name} for ${patientName}?\n\nPrice: $${selectedAmbulance.price}\nETA: ${selectedAmbulance.eta}`,
+      `Book ${selectedProvider?.name || 'Ambulance Service'} for ${patientName}?\n\nService: ${selectedProvider?.serviceType || 'Emergency Transport'}\nETA: ${selectedProvider?.estimatedTime || '15-20 mins'}\nContact: ${selectedProvider?.contact || 'Emergency Services'}`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', onPress: () => Alert.alert('Success', 'Ambulance booked successfully! ETA: ' + selectedAmbulance.eta) }
+        { 
+          text: 'Confirm', 
+          onPress: () => {
+            // Update provider availability after booking
+            if (selectedProvider) {
+              setProviders(prevProviders => 
+                prevProviders.map(provider => 
+                  provider.id === selectedProvider.id 
+                    ? { ...provider, available: false }
+                    : provider
+                )
+              );
+            }
+            
+            Alert.alert(
+              'Booking Confirmed!', 
+              `Ambulance booked successfully!\n\n${selectedProvider?.name || 'Emergency Services'} will arrive in ${selectedProvider?.estimatedTime || '15-20 mins'}\n\nYou will receive a confirmation call shortly.`,
+              [
+                { 
+                  text: 'OK', 
+                  onPress: resetForm
+                }
+              ]
+            );
+          }
+        }
       ]
     );
+  };
+
+  const handleQuickBook = (provider: any) => {
+    setSelectedProvider(provider);
+    setShowBookingForm(true);
   };
 
   const handleEmergencyCall = (contact: any) => {
@@ -84,13 +160,56 @@ export default function AmbulanceScreen() {
     );
   };
 
+  const resetForm = () => {
+    setPatientName('');
+    setPatientAge('');
+    setPhoneNumber('');
+    setEmergencyType('');
+    setLocation('');
+    setSelectedProvider(null);
+    setShowBookingForm(false);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Emergency Ambulance</Text>
-          <Text style={styles.headerSubtitle}>Book emergency medical transport</Text>
+          <Text style={styles.headerSubtitle}>Quick emergency medical transport</Text>
+        </View>
+
+        {/* Hero Section with Map */}
+        <View style={styles.heroSection}>
+          <View style={styles.mapContainer}>
+            <View style={styles.mapPlaceholder}>
+              <Ionicons name="location" size={40} color={theme.colors.primary[500]} />
+              <Text style={styles.mapText}>Your Location</Text>
+              <View style={styles.ambulancePins}>
+                <View style={[styles.ambulancePin, { top: 60, left: 80 }]}>
+                  <Ionicons name="car" size={16} color={theme.colors.error[500]} />
+                </View>
+                <View style={[styles.ambulancePin, { top: 100, right: 60 }]}>
+                  <Ionicons name="car" size={16} color={theme.colors.error[500]} />
+                </View>
+                <View style={[styles.ambulancePin, { bottom: 80, left: 100 }]}>
+                  <Ionicons name="car" size={16} color={theme.colors.error[500]} />
+                </View>
+              </View>
+            </View>
+          </View>
+          
+          {/* Quick Book Button */}
+          <TouchableOpacity 
+            style={styles.quickBookButton} 
+            onPress={() => setShowBookingForm(true)}
+            accessibilityLabel="Book Ambulance Now"
+            accessibilityHint="Opens the ambulance booking form"
+            accessibilityRole="button"
+          >
+            <Ionicons name="car" size={24} color={theme.colors.text.inverse} />
+            <Text style={styles.quickBookText}>Book Ambulance Now</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Emergency Contacts */}
@@ -105,6 +224,9 @@ export default function AmbulanceScreen() {
                   { backgroundColor: getEmergencyColor(contact.type) }
                 ]}
                 onPress={() => handleEmergencyCall(contact)}
+                accessibilityLabel={`Call ${contact.name} at ${contact.number}`}
+                accessibilityHint="Taps to call emergency services"
+                accessibilityRole="button"
               >
                 <Ionicons name="call" size={24} color={theme.colors.text.inverse} />
                 <Text style={styles.emergencyName}>{contact.name}</Text>
@@ -114,155 +236,200 @@ export default function AmbulanceScreen() {
           </View>
         </View>
 
-        {/* Ambulance Types */}
-        <View style={styles.ambulanceSection}>
-          <Text style={styles.sectionTitle}>Available Ambulances</Text>
-          {ambulanceTypes.map((ambulance) => (
-            <TouchableOpacity
-              key={ambulance.id}
-              style={[
-                styles.ambulanceCard,
-                selectedAmbulance?.id === ambulance.id && styles.selectedAmbulance,
-                !ambulance.available && styles.unavailableAmbulance
-              ]}
-              onPress={() => ambulance.available && setSelectedAmbulance(ambulance)}
-              disabled={!ambulance.available}
-            >
-              <View style={styles.ambulanceHeader}>
-                <View style={styles.ambulanceIcon}>
-                  <Ionicons 
-                    name={ambulance.icon as any} 
-                    size={24} 
-                    color={ambulance.available ? theme.colors.primary[500] : theme.colors.neutral[400]} 
-                  />
-                </View>
-                <View style={styles.ambulanceInfo}>
-                  <Text style={[
-                    styles.ambulanceName,
-                    !ambulance.available && styles.unavailableText
-                  ]}>
-                    {ambulance.name}
-                  </Text>
-                  <Text style={[
-                    styles.ambulanceDescription,
-                    !ambulance.available && styles.unavailableText
-                  ]}>
-                    {ambulance.description}
-                  </Text>
-                  <View style={styles.ambulanceMeta}>
+        {/* Ambulance Service Providers */}
+        <View style={styles.providersSection}>
+          <Text style={styles.sectionTitle}>Available Service Providers</Text>
+          {providers.map((provider) => (
+            <View key={provider.id} style={styles.providerCard}>
+              <View style={styles.providerHeader}>
+                <View style={styles.providerInfo}>
+                  <Text style={styles.providerName}>{provider.name}</Text>
+                  <Text style={styles.providerService}>{provider.serviceType}</Text>
+                  <View style={styles.providerMeta}>
                     <View style={styles.metaItem}>
                       <Ionicons name="time" size={14} color={theme.colors.text.secondary} />
-                      <Text style={styles.metaText}>{ambulance.eta}</Text>
+                      <Text style={styles.metaText}>{provider.estimatedTime}</Text>
                     </View>
                     <View style={styles.metaItem}>
-                      <Ionicons name="cash" size={14} color={theme.colors.text.secondary} />
-                      <Text style={styles.metaText}>${ambulance.price}</Text>
+                      <Ionicons name="location" size={14} color={theme.colors.text.secondary} />
+                      <Text style={styles.metaText}>{provider.distance}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="star" size={14} color={theme.colors.warning[500]} />
+                      <Text style={styles.metaText}>{provider.rating}</Text>
                     </View>
                   </View>
                 </View>
-                <View style={styles.ambulanceStatus}>
-                  {ambulance.available ? (
-                    <View style={styles.availableBadge}>
-                      <Text style={styles.availableText}>Available</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.unavailableBadge}>
-                      <Text style={styles.unavailableBadgeText}>Unavailable</Text>
-                    </View>
-                  )}
+                <View style={styles.providerActions}>
+                  <TouchableOpacity 
+                    style={styles.contactButton}
+                    onPress={() => Alert.alert('Call', `Calling ${provider.contact}`)}
+                    accessibilityLabel={`Call ${provider.name} at ${provider.contact}`}
+                    accessibilityHint="Taps to call the ambulance service provider"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="call" size={16} color={theme.colors.primary[500]} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[
+                      styles.bookProviderButton,
+                      !provider.available && styles.disabledButton
+                    ]}
+                    onPress={() => provider.available && handleQuickBook(provider)}
+                    disabled={!provider.available}
+                    accessibilityLabel={provider.available ? `Book ${provider.name}` : `${provider.name} is unavailable`}
+                    accessibilityHint={provider.available ? "Taps to book this ambulance service" : "This service is currently unavailable"}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[
+                      styles.bookProviderText,
+                      !provider.available && styles.disabledText
+                    ]}>
+                      {provider.available ? 'Book Now' : 'Unavailable'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
               
               <View style={styles.featuresContainer}>
-                <Text style={styles.featuresTitle}>Features:</Text>
+                <Text style={styles.featuresTitle}>Services:</Text>
                 <View style={styles.featuresList}>
-                  {ambulance.features.map((feature, index) => (
+                  {provider.features.map((feature, index) => (
                     <View key={index} style={styles.featureItem}>
-                      <Ionicons name="checkmark" size={12} color={theme.colors.success} />
+                      <Ionicons name="checkmark" size={12} color={theme.colors.success[500]} />
                       <Text style={styles.featureText}>{feature}</Text>
                     </View>
                   ))}
                 </View>
               </View>
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
 
-        {/* Booking Form */}
-        {selectedAmbulance && (
-          <View style={styles.bookingSection}>
-            <Text style={styles.sectionTitle}>Booking Details</Text>
-            <View style={styles.formContainer}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Patient Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={patientName}
-                  onChangeText={setPatientName}
-                  placeholder="Enter patient name"
-                  placeholderTextColor={theme.colors.text.secondary}
-                />
-              </View>
-              
-              <View style={styles.inputRow}>
-                <View style={[styles.inputGroup, { flex: 1, marginRight: theme.spacing.sm }]}>
-                  <Text style={styles.inputLabel}>Age *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={patientAge}
-                    onChangeText={setPatientAge}
-                    placeholder="Age"
-                    keyboardType="numeric"
-                    placeholderTextColor={theme.colors.text.secondary}
-                  />
+        {/* Booking Form Modal */}
+        <Modal
+          visible={showBookingForm}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowBookingForm(false)}
+        >
+          <View style={styles.bookingModal}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.keyboardAvoidingView}
+            >
+              <View style={styles.bookingContent}>
+                <View style={styles.bookingHeader}>
+                  <Text style={styles.bookingTitle}>Book Ambulance</Text>
+                  <TouchableOpacity 
+                    style={styles.closeButton}
+                    onPress={() => setShowBookingForm(false)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+                  </TouchableOpacity>
                 </View>
-                <View style={[styles.inputGroup, { flex: 1, marginLeft: theme.spacing.sm }]}>
-                  <Text style={styles.inputLabel}>Phone *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    placeholder="Phone number"
-                    keyboardType="phone-pad"
-                    placeholderTextColor={theme.colors.text.secondary}
-                  />
+                
+                {selectedProvider && (
+                  <View style={styles.selectedProviderInfo}>
+                    <Text style={styles.selectedProviderTitle}>Selected Service:</Text>
+                    <Text style={styles.selectedProviderName}>{selectedProvider.name}</Text>
+                    <Text style={styles.selectedProviderDetails}>
+                      {selectedProvider.serviceType} • ETA: {selectedProvider.estimatedTime}
+                    </Text>
+                  </View>
+                )}
+                
+                <ScrollView 
+                  style={styles.formContainer}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Patient Name *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={patientName}
+                      onChangeText={setPatientName}
+                      placeholder="Enter patient name"
+                      placeholderTextColor={theme.colors.text.secondary}
+                      autoCapitalize="words"
+                      returnKeyType="next"
+                    />
+                  </View>
+                  
+                  <View style={styles.inputRow}>
+                    <View style={[styles.inputGroup, { flex: 1, marginRight: theme.spacing.sm }]}>
+                      <Text style={styles.inputLabel}>Age *</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={patientAge}
+                        onChangeText={setPatientAge}
+                        placeholder="Age"
+                        keyboardType="numeric"
+                        placeholderTextColor={theme.colors.text.secondary}
+                        maxLength={3}
+                        returnKeyType="next"
+                      />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1, marginLeft: theme.spacing.sm }]}>
+                      <Text style={styles.inputLabel}>Phone *</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={phoneNumber}
+                        onChangeText={setPhoneNumber}
+                        placeholder="Phone number"
+                        keyboardType="phone-pad"
+                        placeholderTextColor={theme.colors.text.secondary}
+                        returnKeyType="next"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Emergency Type *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={emergencyType}
+                      onChangeText={setEmergencyType}
+                      placeholder="e.g., Heart attack, Accident, etc."
+                      placeholderTextColor={theme.colors.text.secondary}
+                      autoCapitalize="words"
+                      returnKeyType="next"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Location *</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={location}
+                      onChangeText={setLocation}
+                      placeholder="Enter pickup location"
+                      placeholderTextColor={theme.colors.text.secondary}
+                      autoCapitalize="words"
+                      returnKeyType="done"
+                    />
+                  </View>
+                </ScrollView>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={styles.cancelButton} 
+                    onPress={() => setShowBookingForm(false)}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.confirmBookButton} onPress={handleBookAmbulance}>
+                    <Ionicons name="car" size={20} color={theme.colors.text.inverse} />
+                    <Text style={styles.confirmBookText}>Confirm Booking</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Emergency Type *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={emergencyType}
-                  onChangeText={setEmergencyType}
-                  placeholder="e.g., Heart attack, Accident, etc."
-                  placeholderTextColor={theme.colors.text.secondary}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Location *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={location}
-                  onChangeText={setLocation}
-                  placeholder="Enter pickup location"
-                  placeholderTextColor={theme.colors.text.secondary}
-                />
-              </View>
-            </View>
+            </KeyboardAvoidingView>
           </View>
-        )}
-
-        {/* Book Button */}
-        {selectedAmbulance && (
-          <TouchableOpacity style={styles.bookButton} onPress={handleBookAmbulance}>
-            <Ionicons name="car" size={24} color={theme.colors.text.inverse} />
-            <Text style={styles.bookButtonText}>
-              Book {selectedAmbulance.name} - ${selectedAmbulance.price}
-            </Text>
-          </TouchableOpacity>
-        )}
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -270,10 +437,10 @@ export default function AmbulanceScreen() {
 
 const getEmergencyColor = (type: string) => {
   switch (type) {
-    case 'Emergency': return theme.colors.error;
+    case 'Emergency': return theme.colors.error[500];
     case 'Police': return theme.colors.primary[500];
-    case 'Fire': return theme.colors.warning;
-    case 'Medical': return theme.colors.success;
+    case 'Fire': return theme.colors.warning[500];
+    case 'Medical': return theme.colors.success[500];
     default: return theme.colors.neutral[500];
   }
 };
@@ -299,6 +466,66 @@ const styles = StyleSheet.create({
     ...theme.typography.textStyles.body1,
     color: theme.colors.text.secondary,
   },
+  heroSection: {
+    marginBottom: theme.spacing['3xl'],
+  },
+  mapContainer: {
+    height: 200,
+    marginBottom: theme.spacing.lg,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.background.primary,
+    shadowColor: theme.colors.shadow.medium,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    backgroundColor: theme.colors.background.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  mapText: {
+    ...theme.typography.textStyles.h5,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.sm,
+  },
+  ambulancePins: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  ambulancePin: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.background.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.shadow.medium,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  quickBookButton: {
+    backgroundColor: theme.colors.error[500],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.lg,
+    borderRadius: 16,
+  },
+  quickBookText: {
+    ...theme.typography.textStyles.h5,
+    color: theme.colors.text.inverse,
+    marginLeft: theme.spacing.md,
+    fontWeight: '700',
+  },
   emergencySection: {
     marginBottom: theme.spacing['3xl'],
   },
@@ -318,7 +545,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: theme.spacing.md,
-    ...theme.components.card,
   },
   emergencyName: {
     ...theme.typography.textStyles.body1,
@@ -333,50 +559,33 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: theme.spacing.xs,
   },
-  ambulanceSection: {
+  providersSection: {
     marginBottom: theme.spacing['3xl'],
   },
-  ambulanceCard: {
-    ...theme.components.card,
+  providerCard: {
     marginBottom: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    ...theme.components.card,
   },
-  selectedAmbulance: {
-    borderColor: theme.colors.primary[500],
-    backgroundColor: theme.colors.primary[50],
-  },
-  unavailableAmbulance: {
-    opacity: 0.6,
-  },
-  ambulanceHeader: {
+  providerHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: theme.spacing.lg,
   },
-  ambulanceIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: theme.colors.background.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: theme.spacing.lg,
-  },
-  ambulanceInfo: {
+  providerInfo: {
     flex: 1,
   },
-  ambulanceName: {
+  providerName: {
     ...theme.typography.textStyles.h5,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
+    fontWeight: '600',
   },
-  ambulanceDescription: {
+  providerService: {
     ...theme.typography.textStyles.body2,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.sm,
   },
-  ambulanceMeta: {
+  providerMeta: {
     flexDirection: 'row',
     gap: theme.spacing.lg,
   },
@@ -389,33 +598,34 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     marginLeft: theme.spacing.xs,
   },
-  ambulanceStatus: {
+  providerActions: {
     alignItems: 'flex-end',
+    gap: theme.spacing.sm,
   },
-  availableBadge: {
-    backgroundColor: theme.colors.success,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 12,
+  contactButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.background.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  availableText: {
-    ...theme.typography.textStyles.caption,
+  bookProviderButton: {
+    backgroundColor: theme.colors.primary[500],
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 20,
+  },
+  bookProviderText: {
+    ...theme.typography.textStyles.label,
     color: theme.colors.text.inverse,
     fontWeight: '600',
   },
-  unavailableBadge: {
+  disabledButton: {
     backgroundColor: theme.colors.neutral[300],
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 12,
   },
-  unavailableBadgeText: {
-    ...theme.typography.textStyles.caption,
+  disabledText: {
     color: theme.colors.text.secondary,
-    fontWeight: '600',
-  },
-  unavailableText: {
-    color: theme.colors.neutral[400],
   },
   featuresContainer: {
     marginTop: theme.spacing.sm,
@@ -440,11 +650,72 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     marginLeft: theme.spacing.xs,
   },
-  bookingSection: {
-    marginBottom: theme.spacing.xl,
+  bookingModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  bookingContent: {
+    backgroundColor: theme.colors.background.primary,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: theme.spacing.lg,
+    maxHeight: '90%',
+    shadowColor: theme.colors.shadow.medium,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bookingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  bookingTitle: {
+    ...theme.typography.textStyles.h4,
+    color: theme.colors.text.primary,
+    fontWeight: '700',
+  },
+  closeButton: {
+    padding: theme.spacing.sm,
+    borderRadius: 20,
+    backgroundColor: theme.colors.background.tertiary,
+  },
+  selectedProviderInfo: {
+    backgroundColor: theme.colors.primary[50],
+    padding: theme.spacing.md,
+    borderRadius: 12,
+    marginBottom: theme.spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary[500],
+  },
+  selectedProviderTitle: {
+    ...theme.typography.textStyles.label,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
+  },
+  selectedProviderName: {
+    ...theme.typography.textStyles.h6,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
+  },
+  selectedProviderDetails: {
+    ...theme.typography.textStyles.caption,
+    color: theme.colors.text.secondary,
   },
   formContainer: {
-    ...theme.components.card,
+    maxHeight: 400,
+    marginBottom: theme.spacing.lg,
   },
   inputGroup: {
     marginBottom: theme.spacing.lg,
@@ -456,22 +727,49 @@ const styles = StyleSheet.create({
     ...theme.typography.textStyles.label,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
+    fontWeight: '600',
   },
   input: {
     ...theme.components.input,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    backgroundColor: theme.colors.background.primary,
   },
-  bookButton: {
-    backgroundColor: theme.colors.error,
+  modalActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: theme.colors.background.tertiary,
+    padding: theme.spacing.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    ...theme.typography.textStyles.h6,
+    color: theme.colors.text.secondary,
+    fontWeight: '600',
+  },
+  confirmBookButton: {
+    flex: 2,
+    backgroundColor: theme.colors.error[500],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.spacing.lg,
     borderRadius: 12,
-    ...theme.components.card,
+    gap: theme.spacing.sm,
+    shadowColor: theme.colors.shadow.medium,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  bookButtonText: {
-    ...theme.typography.textStyles.h5,
+  confirmBookText: {
+    ...theme.typography.textStyles.h6,
     color: theme.colors.text.inverse,
-    marginLeft: theme.spacing.md,
+    fontWeight: '700',
   },
 });

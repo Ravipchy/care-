@@ -258,9 +258,6 @@ const styles = StyleSheet.create({
   },
   uploadButton: {
     flex: 1,
-    backgroundColor: theme.colors.primary[500],
-    padding: theme.spacing.xl,
-    borderRadius: 12,
     alignItems: 'center',
     ...theme.components.card,
   },
@@ -311,9 +308,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.sm,
   },
   submitButton: {
-    backgroundColor: theme.colors.secondary[500],
-    padding: theme.spacing.xl,
-    borderRadius: 12,
     alignItems: 'center',
     ...theme.components.card,
   },

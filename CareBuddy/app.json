@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/carebuddy-logo.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/carebuddy-logo.png",
       "resizeMode": "contain",
@@ -27,6 +26,12 @@
       "package": "com.ravipchy.carebuddy",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ],
       "config": {
         "googleMaps": {
           "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
@@ -41,6 +46,10 @@
         "projectId": "78e79c79-facb-4e8d-aca2-7cc854ce77b7"
       }
     },
-    "owner": "ravipchy"
+    "owner": "ravipchy",
+    "plugins": [
+      "expo-font",
+      "expo-asset"
+    ]
   }
 }

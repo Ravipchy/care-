@@ -18,13 +18,14 @@ export type RootStackParamList = {
   Settings: undefined;
   EditProfile: undefined;
   UploadPrescription: undefined;
-  BookAppointment: undefined;
   RescheduleAppointment: { appointmentId: string };
+  Appointments: undefined;
+  DoctorProfile: { doctorId: string };
 };
 
 export type MainTabParamList = {
   Home: undefined;
-  Doctors: undefined;
+  Doctors: undefined; // Now points to NearbyDoctorsScreen
   Pharmacy: undefined;
   Appointments: undefined;
   Reports: undefined;
@@ -32,15 +33,3 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
-export type DrawerParamList = {
-  MainTabs: undefined;
-  Profile: undefined;
-  MedicalHistory: undefined;
-  LabTest: undefined;
-  Ambulance: undefined;
-  HomeCare: undefined;
-  AboutUs: undefined;
-  Telemedicine: undefined;
-  Pharmacy: undefined;
-  Logout: undefined;
-};

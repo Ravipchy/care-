@@ -5,11 +5,12 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  Alert 
+  Alert,
+  TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 
@@ -25,20 +26,21 @@ interface CartItem {
 
 export default function CartScreen() {
   const navigation = useNavigation<CartScreenNavigationProp>();
-  const route = useRoute();
-  const cart: CartItem[] = route.params?.cart || [];
+  const route = useRoute<RouteProp<RootStackParamList, 'Cart'>>();
+  const [cart, setCart] = useState<CartItem[]>(route.params?.cart || []);
+  const [deliveryAddress, setDeliveryAddress] = useState('');
 
   const updateQuantity = (id: number, newQuantity: number) => {
     if (newQuantity <= 0) {
       // Remove item from cart
       const updatedCart = cart.filter(item => item.id !== id);
-      navigation.setParams({ cart: updatedCart });
+      setCart(updatedCart);
     } else {
       // Update quantity
       const updatedCart = cart.map(item =>
         item.id === id ? { ...item, quantity: newQuantity } : item
       );
-      navigation.setParams({ cart: updatedCart });
+      setCart(updatedCart);
     }
   };
 
@@ -53,7 +55,7 @@ export default function CartScreen() {
           style: 'destructive',
           onPress: () => {
             const updatedCart = cart.filter(item => item.id !== id);
-            navigation.setParams({ cart: updatedCart });
+            setCart(updatedCart);
           }
         }
       ]
@@ -65,13 +67,21 @@ export default function CartScreen() {
   };
 
   const confirmBooking = () => {
+    if (!deliveryAddress.trim()) {
+      Alert.alert('Address Required', 'Please enter a delivery address before confirming your order.');
+      return;
+    }
+    
     Alert.alert(
       'Confirm Booking',
-      `Total Amount: $${getTotalPrice()}\n\nYour medicine order has been placed successfully!`,
+      `Total Amount: $${getTotalPrice()}\nDelivery Address: ${deliveryAddress}\n\nYour medicine order has been placed successfully!`,
       [
         {
           text: 'OK',
           onPress: () => {
+            // Clear the cart after successful purchase
+            setCart([]);
+            setDeliveryAddress('');
             navigation.goBack();
             Alert.alert('Success', 'Your order has been confirmed and will be delivered soon!');
           }
@@ -182,6 +192,18 @@ export default function CartScreen() {
         {/* Delivery Info */}
         <View style={styles.deliverySection}>
           <Text style={styles.deliveryTitle}>Delivery Information</Text>
+          <View style={styles.deliveryAddressContainer}>
+            <Text style={styles.deliveryAddressLabel}>Delivery Address *</Text>
+            <TextInput
+              style={styles.deliveryAddressInput}
+              value={deliveryAddress}
+              onChangeText={setDeliveryAddress}
+              placeholder="Enter your delivery address"
+              placeholderTextColor="#7f8c8d"
+              multiline
+              numberOfLines={3}
+            />
+          </View>
           <View style={styles.deliveryInfo}>
             <Ionicons name="location" size={20} color="#3498db" />
             <Text style={styles.deliveryText}>
@@ -407,6 +429,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#7f8c8d',
     marginLeft: 10,
+  },
+  deliveryAddressContainer: {
+    marginBottom: 15,
+  },
+  deliveryAddressLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  deliveryAddressInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#2c3e50',
+    backgroundColor: '#ffffff',
+    textAlignVertical: 'top',
   },
   checkoutContainer: {
     position: 'absolute',

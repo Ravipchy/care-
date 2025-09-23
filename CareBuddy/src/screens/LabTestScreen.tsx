@@ -8,79 +8,153 @@ import {
   Image, 
   TextInput, 
   Alert,
-  Modal
+  Modal,
+  FlatList,
+  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigation';
 import { theme } from '../theme';
 
-// Sample lab tests data
+type LabTestScreenNavigationProp = StackNavigationProp<RootStackParamList, 'LabTest'>;
+
+const { width } = Dimensions.get('window');
+
+// Test categories
+const categories = [
+  { id: 'all', name: 'All', icon: 'grid-outline' },
+  { id: 'full-body', name: 'Full Body Checkup', icon: 'body-outline' },
+  { id: 'diabetes', name: 'Diabetes', icon: 'water-outline' },
+  { id: 'heart', name: 'Heart', icon: 'heart-outline' },
+  { id: 'kidney', name: 'Kidney', icon: 'fitness-outline' },
+  { id: 'thyroid', name: 'Thyroid', icon: 'leaf-outline' },
+  { id: 'liver', name: 'Liver', icon: 'medical-outline' },
+];
+
+// Enhanced lab tests data
 const labTests = [
   {
     id: 1,
     name: 'Complete Blood Count (CBC)',
-    description: 'Measures different components of blood',
+    description: 'Includes 5 parameters',
     price: 150,
     duration: '2-4 hours',
     fasting: true,
-    category: 'Blood Test',
+    category: 'full-body',
     icon: '🩸',
     popular: true,
+    homeCollection: true,
   },
   {
     id: 2,
     name: 'Lipid Profile',
-    description: 'Cholesterol and triglyceride levels',
+    description: 'Includes 4 parameters',
     price: 200,
     duration: '4-6 hours',
     fasting: true,
-    category: 'Blood Test',
+    category: 'heart',
     icon: '💉',
     popular: true,
+    homeCollection: true,
   },
   {
     id: 3,
     name: 'Thyroid Function Test',
-    description: 'TSH, T3, T4 levels',
+    description: 'Includes 3 parameters',
     price: 300,
     duration: '6-8 hours',
     fasting: false,
-    category: 'Hormone Test',
+    category: 'thyroid',
     icon: '🦋',
     popular: false,
+    homeCollection: true,
   },
   {
     id: 4,
     name: 'Diabetes Panel',
-    description: 'Fasting glucose, HbA1c, insulin',
+    description: 'Includes 6 parameters',
     price: 250,
     duration: '4-6 hours',
     fasting: true,
-    category: 'Blood Test',
+    category: 'diabetes',
     icon: '🍯',
     popular: true,
+    homeCollection: true,
   },
   {
     id: 5,
     name: 'Liver Function Test',
-    description: 'ALT, AST, bilirubin levels',
+    description: 'Includes 8 parameters',
     price: 180,
     duration: '4-6 hours',
     fasting: true,
-    category: 'Blood Test',
+    category: 'liver',
     icon: '🫀',
     popular: false,
+    homeCollection: true,
   },
   {
     id: 6,
     name: 'Kidney Function Test',
-    description: 'Creatinine, BUN, eGFR',
+    description: 'Includes 4 parameters',
     price: 120,
     duration: '2-4 hours',
     fasting: false,
-    category: 'Blood Test',
+    category: 'kidney',
     icon: '🫁',
     popular: false,
+    homeCollection: true,
+  },
+  {
+    id: 7,
+    name: 'Full Body Checkup',
+    description: 'Includes 25+ parameters',
+    price: 800,
+    duration: '6-8 hours',
+    fasting: true,
+    category: 'full-body',
+    icon: '🏥',
+    popular: true,
+    homeCollection: true,
+  },
+  {
+    id: 8,
+    name: 'Cardiac Risk Assessment',
+    description: 'Includes 8 parameters',
+    price: 350,
+    duration: '4-6 hours',
+    fasting: true,
+    category: 'heart',
+    icon: '❤️',
+    popular: false,
+    homeCollection: true,
+  },
+  {
+    id: 9,
+    name: 'Vitamin D Test',
+    description: 'Includes 1 parameter',
+    price: 400,
+    duration: '2-4 hours',
+    fasting: false,
+    category: 'full-body',
+    icon: '☀️',
+    popular: false,
+    homeCollection: true,
+  },
+  {
+    id: 10,
+    name: 'HbA1c Test',
+    description: 'Includes 1 parameter',
+    price: 180,
+    duration: '2-4 hours',
+    fasting: false,
+    category: 'diabetes',
+    icon: '🩺',
+    popular: true,
+    homeCollection: true,
   },
 ];
 
@@ -112,321 +186,273 @@ const labCenters = [
 ];
 
 export default function LabTestScreen() {
-  const [selectedTests, setSelectedTests] = useState<any[]>([]);
-  const [selectedCenter, setSelectedCenter] = useState(null);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [patientName, setPatientName] = useState('');
-  const [patientAge, setPatientAge] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
+  const navigation = useNavigation<LabTestScreenNavigationProp>();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [cart, setCart] = useState<any[]>([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadedPrescription, setUploadedPrescription] = useState<string | null>(null);
+  const [showUploadSuccess, setShowUploadSuccess] = useState(false);
 
-  const categories = ['All', 'Blood Test', 'Hormone Test', 'Urine Test', 'Other'];
+  const popularTests = labTests.filter(test => test.popular);
+  
+  const filteredTests = labTests.filter(test => {
+    const matchesSearch = test.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         test.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || test.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
-  const toggleTestSelection = (test: any) => {
-    const isSelected = selectedTests.find(t => t.id === test.id);
-    if (isSelected) {
-      setSelectedTests(selectedTests.filter(t => t.id !== test.id));
+  const addToCart = (test: any) => {
+    const existingItem = cart.find(item => item.id === test.id);
+    if (existingItem) {
+      setCart(cart.map(item =>
+        item.id === test.id
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      ));
     } else {
-      setSelectedTests([...selectedTests, test]);
+      setCart([...cart, { ...test, quantity: 1 }]);
     }
+    Alert.alert('Added to Cart', `${test.name} has been added to your cart.`);
   };
 
-  const getTotalPrice = () => {
-    return selectedTests.reduce((total, test) => total + test.price, 0);
+  const uploadPrescription = () => {
+    // Simulate file upload
+    setUploadedPrescription('prescription_uploaded.pdf');
+    setShowUploadModal(false);
+    setShowUploadSuccess(true);
+    setTimeout(() => setShowUploadSuccess(false), 3000);
   };
 
-  const handleBookTest = () => {
-    if (selectedTests.length === 0) {
-      Alert.alert('Error', 'Please select at least one test');
+  const goToCart = () => {
+    if (cart.length === 0) {
+      Alert.alert('Empty Cart', 'Your cart is empty. Add some tests first.');
       return;
     }
-    if (!selectedCenter) {
-      Alert.alert('Error', 'Please select a lab center');
-      return;
-    }
-    setShowBookingModal(true);
-  };
-
-  const handleConfirmBooking = () => {
-    if (!patientName || !patientAge || !phoneNumber || !selectedDate || !selectedTime) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-
-    Alert.alert(
-      'Booking Confirmed',
-      `Lab test booked successfully!\n\nPatient: ${patientName}\nTests: ${selectedTests.length}\nTotal: $${getTotalPrice()}\nCenter: ${selectedCenter.name}\nDate: ${selectedDate} at ${selectedTime}`,
-      [
-        { text: 'OK', onPress: () => {
-          setShowBookingModal(false);
-          setSelectedTests([]);
-          setSelectedCenter(null);
-        }}
-      ]
-    );
-  };
-
-  const renderStars = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Ionicons key={i} name="star" size={14} color="#ffd700" />);
-    }
-    if (hasHalfStar) {
-      stars.push(<Ionicons key="half" name="star-half" size={14} color="#ffd700" />);
-    }
-    const emptyStars = 5 - Math.ceil(rating);
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(<Ionicons key={`empty-${i}`} name="star-outline" size={14} color="#ffd700" />);
-    }
-    return stars;
+    navigation.navigate('Cart' as any, { cart });
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
+      {/* Header with Cart Icon */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="flask" size={24} color={theme.colors.primary[500]} />
           <Text style={styles.headerTitle}>Lab Tests</Text>
-          <Text style={styles.headerSubtitle}>Book diagnostic tests and health checkups</Text>
+        </View>
+        <TouchableOpacity style={styles.cartIcon} onPress={goToCart}>
+          <Ionicons name="cart" size={24} color={theme.colors.text.primary} />
+          {cart.length > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cart.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={[{ type: 'content' }]}
+        renderItem={() => (
+          <View style={styles.scrollContent}>
+            {/* Search Bar */}
+            <View style={styles.searchSection}>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color={theme.colors.text.secondary} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search tests..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholderTextColor={theme.colors.text.secondary}
+                />
+                    </View>
+                    </View>
+
+            {/* Popular Tests Section */}
+            <View style={styles.popularSection}>
+              <Text style={styles.sectionTitle}>Popular Tests</Text>
+              <FlatList
+                data={popularTests}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <View style={styles.popularTestCard}>
+                    <View style={styles.popularTestIcon}>
+                      <Text style={styles.popularTestEmoji}>{item.icon}</Text>
+                    </View>
+                    <Text style={styles.popularTestName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.popularTestPrice}>${item.price}</Text>
+                    <TouchableOpacity 
+                      style={styles.bookNowButton}
+                      onPress={() => addToCart(item)}
+                    >
+                      <Text style={styles.bookNowText}>Book Now</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                contentContainerStyle={styles.popularTestsList}
+              />
         </View>
 
-        {/* Lab Tests */}
-        <View style={styles.testsSection}>
-          <Text style={styles.sectionTitle}>Available Tests</Text>
-          {labTests.map((test) => (
+            {/* Categories Section */}
+            <View style={styles.categoriesSection}>
+              <Text style={styles.sectionTitle}>Categories</Text>
+              <FlatList
+                data={categories}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
             <TouchableOpacity
-              key={test.id}
               style={[
-                styles.testCard,
-                selectedTests.find(t => t.id === test.id) && styles.selectedTest
-              ]}
-              onPress={() => toggleTestSelection(test)}
-            >
-              <View style={styles.testHeader}>
-                <View style={styles.testIcon}>
-                  <Text style={styles.testEmoji}>{test.icon}</Text>
-                </View>
-                <View style={styles.testInfo}>
-                  <View style={styles.testTitleRow}>
-                    <Text style={styles.testName}>{test.name}</Text>
-                    {test.popular && (
-                      <View style={styles.popularBadge}>
-                        <Text style={styles.popularText}>Popular</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.testDescription}>{test.description}</Text>
-                  <View style={styles.testMeta}>
-                    <View style={styles.metaItem}>
-                      <Ionicons name="time" size={14} color={theme.colors.text.secondary} />
-                      <Text style={styles.metaText}>{test.duration}</Text>
-                    </View>
-                    <View style={styles.metaItem}>
-                      <Ionicons name="restaurant" size={14} color={theme.colors.text.secondary} />
-                      <Text style={styles.metaText}>{test.fasting ? 'Fasting Required' : 'No Fasting'}</Text>
-                    </View>
-                    <View style={styles.metaItem}>
-                      <Ionicons name="pricetag" size={14} color={theme.colors.text.secondary} />
-                      <Text style={styles.metaText}>${test.price}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.testActions}>
-                  <View style={[
-                    styles.checkbox,
-                    selectedTests.find(t => t.id === test.id) && styles.checkboxSelected
+                      styles.categoryChip,
+                      selectedCategory === item.id && styles.categoryChipActive
+                    ]}
+                    onPress={() => setSelectedCategory(item.id)}
+                  >
+                    <Ionicons 
+                      name={item.icon as any} 
+                      size={16} 
+                      color={selectedCategory === item.id ? theme.colors.text.inverse : theme.colors.text.secondary} 
+                    />
+                  <Text style={[
+                      styles.categoryChipText,
+                      selectedCategory === item.id && styles.categoryChipTextActive
                   ]}>
-                    {selectedTests.find(t => t.id === test.id) && (
-                      <Ionicons name="checkmark" size={16} color={theme.colors.text.inverse} />
-                    )}
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+                      {item.name}
+                  </Text>
+                  </TouchableOpacity>
+                )}
+                contentContainerStyle={styles.categoriesList}
+              />
+            </View>
 
-        {/* Lab Centers */}
-        <View style={styles.centersSection}>
-          <Text style={styles.sectionTitle}>Lab Centers</Text>
-          {labCenters.map((center) => (
-            <TouchableOpacity
-              key={center.id}
-              style={[
-                styles.centerCard,
-                selectedCenter?.id === center.id && styles.selectedCenter,
-                !center.available && styles.unavailableCenter
-              ]}
-              onPress={() => center.available && setSelectedCenter(center)}
-              disabled={!center.available}
-            >
-              <View style={styles.centerHeader}>
-                <View style={styles.centerInfo}>
-                  <Text style={[
-                    styles.centerName,
-                    !center.available && styles.unavailableText
-                  ]}>
-                    {center.name}
-                  </Text>
-                  <Text style={[
-                    styles.centerAddress,
-                    !center.available && styles.unavailableText
-                  ]}>
-                    {center.address}
-                  </Text>
-                  <View style={styles.centerMeta}>
-                    <View style={styles.metaItem}>
-                      <View style={styles.starsContainer}>
-                        {renderStars(center.rating)}
+            {/* Tests Grid */}
+            <View style={styles.testsSection}>
+              <Text style={styles.sectionTitle}>Available Tests</Text>
+              <FlatList
+                data={filteredTests}
+                numColumns={2}
+                showsVerticalScrollIndicator={false}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <View style={styles.testCard}>
+                    <View style={styles.testIconContainer}>
+                      <Text style={styles.testEmoji}>{item.icon}</Text>
+                    </View>
+                    <Text style={styles.testName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.testDescription} numberOfLines={2}>{item.description}</Text>
+                    <Text style={styles.testPrice}>${item.price}</Text>
+                    <View style={styles.testFeatures}>
+                      <View style={styles.homeCollection}>
+                        <Ionicons name="home" size={12} color={theme.colors.success[500]} />
+                        <Text style={styles.homeCollectionText}>Home Collection</Text>
                       </View>
-                      <Text style={styles.metaText}>{center.rating}</Text>
+                      <View style={styles.fastingInfo}>
+                        <Ionicons 
+                          name={item.fasting ? "restaurant" : "checkmark-circle"} 
+                          size={12} 
+                          color={item.fasting ? theme.colors.warning[500] : theme.colors.success[500]} 
+                        />
+                  <Text style={[
+                          styles.fastingText,
+                          { color: item.fasting ? theme.colors.warning[500] : theme.colors.success[500] }
+                  ]}>
+                          {item.fasting ? 'Fasting' : 'No Fasting'}
+                  </Text>
+                      </View>
                     </View>
-                    <View style={styles.metaItem}>
-                      <Ionicons name="location" size={14} color={theme.colors.text.secondary} />
-                      <Text style={styles.metaText}>{center.distance}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.centerStatus}>
-                  {center.available ? (
-                    <View style={styles.availableBadge}>
-                      <Text style={styles.availableText}>Available</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.unavailableBadge}>
-                      <Text style={styles.unavailableBadgeText}>Closed</Text>
+                    <TouchableOpacity 
+                      style={styles.bookTestButton}
+                      onPress={() => addToCart(item)}
+                    >
+                      <Text style={styles.bookTestText}>Book Test</Text>
+                    </TouchableOpacity>
                     </View>
                   )}
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+                contentContainerStyle={styles.testsList}
+              />
         </View>
 
-        {/* Booking Summary */}
-        {selectedTests.length > 0 && (
-          <View style={styles.summarySection}>
-            <Text style={styles.sectionTitle}>Booking Summary</Text>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Selected Tests ({selectedTests.length})</Text>
-              {selectedTests.map((test) => (
-                <View key={test.id} style={styles.summaryItem}>
-                  <Text style={styles.summaryItemName}>{test.name}</Text>
-                  <Text style={styles.summaryItemPrice}>${test.price}</Text>
+            {/* Upload Prescription Section */}
+            <View style={styles.uploadSection}>
+              <View style={styles.uploadCard}>
+                <View style={styles.uploadCardHeader}>
+                  <Ionicons name="document-text" size={24} color={theme.colors.primary[500]} />
+                  <Text style={styles.uploadCardTitle}>Upload Prescription</Text>
                 </View>
-              ))}
-              <View style={styles.summaryTotal}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalPrice}>${getTotalPrice()}</Text>
+                <Text style={styles.uploadCardDescription}>
+                  Upload your prescription for custom test requests
+                </Text>
+                <TouchableOpacity 
+                  style={styles.uploadButton}
+                  onPress={() => setShowUploadModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="cloud-upload" size={20} color={theme.colors.text.inverse} />
+                  <Text style={styles.uploadButtonText}>Upload Prescription</Text>
+                </TouchableOpacity>
+                {uploadedPrescription && (
+                  <View style={styles.uploadedFile}>
+                    <Ionicons name="checkmark-circle" size={20} color={theme.colors.success[500]} />
+                    <Text style={styles.uploadedFileText}>Prescription uploaded successfully</Text>
+                  </View>
+                )}
               </View>
             </View>
           </View>
         )}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.flatListContent}
+      />
 
-        {/* Book Button */}
-        {selectedTests.length > 0 && selectedCenter && (
-          <TouchableOpacity style={styles.bookButton} onPress={handleBookTest}>
-            <Ionicons name="flask" size={24} color={theme.colors.text.inverse} />
-            <Text style={styles.bookButtonText}>
-              Book Tests - ${getTotalPrice()}
+      {/* Upload Success Message */}
+      {showUploadSuccess && (
+        <View style={styles.successMessage}>
+          <Ionicons name="checkmark-circle" size={20} color={theme.colors.text.inverse} />
+          <Text style={styles.successMessageText}>
+            Your prescription has been uploaded successfully.
             </Text>
-          </TouchableOpacity>
+        </View>
         )}
-      </ScrollView>
 
-      {/* Booking Modal */}
+      {/* Upload Prescription Modal */}
       <Modal
-        visible={showBookingModal}
+        visible={showUploadModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowBookingModal(false)}
+        onRequestClose={() => setShowUploadModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Book Lab Test</Text>
+            <Text style={styles.modalTitle}>Upload Prescription</Text>
             <Text style={styles.modalDescription}>
-              Please provide your details to complete the booking
+              Take a photo or select a file to upload your prescription
             </Text>
-            
-            <View style={styles.formContainer}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Patient Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={patientName}
-                  onChangeText={setPatientName}
-                  placeholder="Enter patient name"
-                  placeholderTextColor={theme.colors.text.secondary}
-                />
-              </View>
-              
-              <View style={styles.inputRow}>
-                <View style={[styles.inputGroup, { flex: 1, marginRight: theme.spacing.sm }]}>
-                  <Text style={styles.inputLabel}>Age *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={patientAge}
-                    onChangeText={setPatientAge}
-                    placeholder="Age"
-                    keyboardType="numeric"
-                    placeholderTextColor={theme.colors.text.secondary}
-                  />
-                </View>
-                <View style={[styles.inputGroup, { flex: 1, marginLeft: theme.spacing.sm }]}>
-                  <Text style={styles.inputLabel}>Phone *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    placeholder="Phone number"
-                    keyboardType="phone-pad"
-                    placeholderTextColor={theme.colors.text.secondary}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputRow}>
-                <View style={[styles.inputGroup, { flex: 1, marginRight: theme.spacing.sm }]}>
-                  <Text style={styles.inputLabel}>Date *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={selectedDate}
-                    onChangeText={setSelectedDate}
-                    placeholder="DD/MM/YYYY"
-                    placeholderTextColor={theme.colors.text.secondary}
-                  />
-                </View>
-                <View style={[styles.inputGroup, { flex: 1, marginLeft: theme.spacing.sm }]}>
-                  <Text style={styles.inputLabel}>Time *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={selectedTime}
-                    onChangeText={setSelectedTime}
-                    placeholder="HH:MM"
-                    placeholderTextColor={theme.colors.text.secondary}
-                  />
-                </View>
-              </View>
-            </View>
-
             <View style={styles.modalButtons}>
               <TouchableOpacity 
-                style={styles.cancelButton}
-                onPress={() => setShowBookingModal(false)}
+                style={styles.modalButton}
+                onPress={uploadPrescription}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Ionicons name="camera" size={20} color={theme.colors.text.inverse} />
+                <Text style={styles.modalButtonText}>Take Photo</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.confirmButton}
-                onPress={handleConfirmBooking}
+                style={styles.modalButton}
+                onPress={uploadPrescription}
               >
-                <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+                <Ionicons name="document" size={20} color={theme.colors.text.inverse} />
+                <Text style={styles.modalButtonText}>Select File</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => setShowUploadModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -439,238 +465,339 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background.secondary,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: theme.spacing.lg,
-  },
   header: {
-    marginBottom: theme.spacing.xl,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
-    ...theme.typography.textStyles.h2,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  headerSubtitle: {
-    ...theme.typography.textStyles.body1,
-    color: theme.colors.text.secondary,
-  },
-  testsSection: {
-    marginBottom: theme.spacing['3xl'],
-  },
-  sectionTitle: {
     ...theme.typography.textStyles.h3,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.lg,
+    marginLeft: theme.spacing.md,
+    fontWeight: '700',
   },
-  testCard: {
-    ...theme.components.card,
-    marginBottom: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: 'transparent',
+  cartIcon: {
+    position: 'relative',
+    padding: theme.spacing.sm,
   },
-  selectedTest: {
-    borderColor: theme.colors.primary[500],
-    backgroundColor: theme.colors.primary[50],
+  cartBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: theme.colors.error[500],
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  testHeader: {
+  cartBadgeText: {
+    color: theme.colors.text.inverse,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  scrollContent: {
+    padding: theme.spacing.lg,
+  },
+  flatListContent: {
+    flexGrow: 1,
+  },
+  searchSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  searchContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: 16,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    shadowColor: theme.colors.shadow.light,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  testIcon: {
+  searchIcon: {
+    marginRight: theme.spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: theme.typography.textStyles.body1.fontSize,
+    color: theme.colors.text.primary,
+  },
+  popularSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  sectionTitle: {
+    ...theme.typography.textStyles.h4,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.lg,
+    fontWeight: '600',
+  },
+  popularTestsList: {
+    paddingRight: theme.spacing.lg,
+  },
+  popularTestCard: {
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    marginRight: theme.spacing.md,
+    width: 160,
+    alignItems: 'center',
+    shadowColor: theme.colors.shadow.light,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  popularTestIcon: {
     width: 50,
     height: 50,
     borderRadius: 25,
     backgroundColor: theme.colors.background.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+  },
+  popularTestEmoji: {
+    fontSize: 24,
+  },
+  popularTestName: {
+    ...theme.typography.textStyles.body1,
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+    fontWeight: '600',
+  },
+  popularTestPrice: {
+    ...theme.typography.textStyles.h5,
+    color: theme.colors.primary[500],
+    marginBottom: theme.spacing.md,
+    fontWeight: '700',
+  },
+  bookNowButton: {
+    backgroundColor: theme.colors.primary[500],
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  bookNowText: {
+    color: theme.colors.text.inverse,
+    ...theme.typography.textStyles.label,
+    fontWeight: '600',
+  },
+  categoriesSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  categoriesList: {
+    paddingRight: theme.spacing.lg,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background.primary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: 20,
+    marginRight: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+  },
+  categoryChipActive: {
+    backgroundColor: theme.colors.primary[500],
+    borderColor: theme.colors.primary[500],
+  },
+  categoryChipText: {
+    ...theme.typography.textStyles.body2,
+    color: theme.colors.text.secondary,
+    marginLeft: theme.spacing.sm,
+    fontWeight: '500',
+  },
+  categoryChipTextActive: {
+    color: theme.colors.text.inverse,
+  },
+  testsSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  testsList: {
+    paddingBottom: theme.spacing.xl,
+  },
+  testCard: {
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    marginRight: theme.spacing.md,
+    width: (width - theme.spacing.lg * 3) / 2,
+    shadowColor: theme.colors.shadow.light,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  testIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: theme.colors.background.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
+    alignSelf: 'center',
   },
   testEmoji: {
     fontSize: 24,
   },
-  testInfo: {
-    flex: 1,
-  },
-  testTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-  },
   testName: {
-    ...theme.typography.textStyles.h5,
+    ...theme.typography.textStyles.body1,
     color: theme.colors.text.primary,
-    flex: 1,
-  },
-  popularBadge: {
-    backgroundColor: theme.colors.warning,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 8,
-  },
-  popularText: {
-    ...theme.typography.textStyles.caption,
-    color: theme.colors.text.inverse,
+    marginBottom: theme.spacing.sm,
     fontWeight: '600',
+    textAlign: 'center',
   },
   testDescription: {
     ...theme.typography.textStyles.body2,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.sm,
+    textAlign: 'center',
   },
-  testMeta: {
-    flexDirection: 'row',
-    gap: theme.spacing.lg,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaText: {
-    ...theme.typography.textStyles.caption,
-    color: theme.colors.text.secondary,
-    marginLeft: theme.spacing.xs,
-  },
-  testActions: {
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: theme.colors.border.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: theme.colors.primary[500],
-    borderColor: theme.colors.primary[500],
-  },
-  centersSection: {
-    marginBottom: theme.spacing['3xl'],
-  },
-  centerCard: {
-    ...theme.components.card,
-    marginBottom: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedCenter: {
-    borderColor: theme.colors.primary[500],
-    backgroundColor: theme.colors.primary[50],
-  },
-  unavailableCenter: {
-    opacity: 0.6,
-  },
-  centerHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  centerInfo: {
-    flex: 1,
-  },
-  centerName: {
-    ...theme.typography.textStyles.h5,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  centerAddress: {
-    ...theme.typography.textStyles.body2,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.sm,
-  },
-  centerMeta: {
-    flexDirection: 'row',
-    gap: theme.spacing.lg,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    marginRight: theme.spacing.xs,
-  },
-  centerStatus: {
-    alignItems: 'flex-end',
-  },
-  availableBadge: {
-    backgroundColor: theme.colors.success,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 12,
-  },
-  availableText: {
-    ...theme.typography.textStyles.caption,
-    color: theme.colors.text.inverse,
-    fontWeight: '600',
-  },
-  unavailableBadge: {
-    backgroundColor: theme.colors.neutral[300],
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 12,
-  },
-  unavailableBadgeText: {
-    ...theme.typography.textStyles.caption,
-    color: theme.colors.text.secondary,
-    fontWeight: '600',
-  },
-  unavailableText: {
-    color: theme.colors.neutral[400],
-  },
-  summarySection: {
-    marginBottom: theme.spacing.xl,
-  },
-  summaryCard: {
-    ...theme.components.card,
-  },
-  summaryTitle: {
-    ...theme.typography.textStyles.h5,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.lg,
-  },
-  summaryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.sm,
-  },
-  summaryItemName: {
-    ...theme.typography.textStyles.body2,
-    color: theme.colors.text.primary,
-    flex: 1,
-  },
-  summaryItemPrice: {
-    ...theme.typography.textStyles.body2,
-    color: theme.colors.text.secondary,
-  },
-  summaryTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border.light,
-    paddingTop: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-  },
-  totalLabel: {
-    ...theme.typography.textStyles.h5,
-    color: theme.colors.text.primary,
-  },
-  totalPrice: {
+  testPrice: {
     ...theme.typography.textStyles.h5,
     color: theme.colors.primary[500],
-    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+    fontWeight: '700',
   },
-  bookButton: {
+  testFeatures: {
+    marginBottom: theme.spacing.md,
+  },
+  homeCollection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  homeCollectionText: {
+    ...theme.typography.textStyles.caption,
+    color: theme.colors.success[500],
+    marginLeft: theme.spacing.xs,
+    fontWeight: '500',
+  },
+  fastingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fastingText: {
+    ...theme.typography.textStyles.caption,
+    marginLeft: theme.spacing.xs,
+    fontWeight: '500',
+  },
+  bookTestButton: {
+    backgroundColor: theme.colors.primary[500],
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bookTestText: {
+    color: theme.colors.text.inverse,
+    ...theme.typography.textStyles.label,
+    fontWeight: '600',
+  },
+  uploadSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  uploadCard: {
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: 16,
+    padding: theme.spacing.xl,
+    shadowColor: theme.colors.shadow.light,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  uploadCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  uploadCardTitle: {
+    ...theme.typography.textStyles.h5,
+    color: theme.colors.text.primary,
+    marginLeft: theme.spacing.md,
+    fontWeight: '600',
+  },
+  uploadCardDescription: {
+    ...theme.typography.textStyles.body2,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.lg,
+    lineHeight: 20,
+  },
+  uploadButton: {
     backgroundColor: theme.colors.primary[500],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: 12,
+  },
+  uploadButtonText: {
+    color: theme.colors.text.inverse,
+    ...theme.typography.textStyles.label,
+    marginLeft: theme.spacing.sm,
+    fontWeight: '600',
+  },
+  uploadedFile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.success[50],
+    padding: theme.spacing.md,
+    borderRadius: 8,
+    marginTop: theme.spacing.md,
+  },
+  uploadedFileText: {
+    color: theme.colors.success[500],
+    ...theme.typography.textStyles.body2,
+    fontWeight: '600',
+    marginLeft: theme.spacing.sm,
+  },
+  successMessage: {
+    position: 'absolute',
+    top: 100,
+    left: theme.spacing.lg,
+    right: theme.spacing.lg,
+    backgroundColor: theme.colors.success[500],
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: theme.spacing.lg,
     borderRadius: 12,
-    ...theme.components.card,
+    shadowColor: theme.colors.shadow.medium,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  bookButtonText: {
-    ...theme.typography.textStyles.h5,
+  successMessageText: {
     color: theme.colors.text.inverse,
+    ...theme.typography.textStyles.body2,
     marginLeft: theme.spacing.md,
+    flex: 1,
+    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
@@ -680,65 +807,58 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: theme.colors.background.primary,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: theme.spacing['3xl'],
     width: '90%',
-    maxHeight: '80%',
+    alignItems: 'center',
+    shadowColor: theme.colors.shadow.dark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   modalTitle: {
     ...theme.typography.textStyles.h3,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.md,
-    textAlign: 'center',
+    fontWeight: '600',
   },
   modalDescription: {
     ...theme.typography.textStyles.body1,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: theme.spacing['3xl'],
-  },
-  formContainer: {
-    marginBottom: theme.spacing.xl,
-  },
-  inputGroup: {
-    marginBottom: theme.spacing.lg,
-  },
-  inputRow: {
-    flexDirection: 'row',
-  },
-  inputLabel: {
-    ...theme.typography.textStyles.label,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  input: {
-    ...theme.components.input,
+    lineHeight: 24,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
+    justifyContent: 'space-around',
+    width: '100%',
+    marginBottom: theme.spacing.xl,
+  },
+  modalButton: {
+    backgroundColor: theme.colors.primary[500],
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: 12,
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
+    justifyContent: 'center',
+  },
+  modalButtonText: {
+    color: theme.colors.text.inverse,
+    ...theme.typography.textStyles.body1,
+    fontWeight: '600',
+    marginLeft: theme.spacing.sm,
   },
   cancelButton: {
-    flex: 1,
-    backgroundColor: theme.colors.background.tertiary,
-    padding: theme.spacing.lg,
-    borderRadius: 8,
-    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
   },
   cancelButtonText: {
-    ...theme.typography.textStyles.label,
     color: theme.colors.text.secondary,
-  },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: theme.colors.primary[500],
-    padding: theme.spacing.lg,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    ...theme.typography.textStyles.label,
-    color: theme.colors.text.inverse,
+    ...theme.typography.textStyles.body1,
     fontWeight: '600',
   },
 });

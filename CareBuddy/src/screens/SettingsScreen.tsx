@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Switch, Al
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { DrawerParamList } from '../types/navigation';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigation';
 import { theme } from '../theme';
 
-type SettingsScreenNavigationProp = DrawerNavigationProp<DrawerParamList, 'MainTabs'>;
+type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
@@ -101,7 +101,7 @@ export default function SettingsScreen() {
                     </View>
                     <View style={styles.settingTextContainer}>
                       <Text style={styles.settingTitle}>{item.title}</Text>
-                      {item.subtitle && (
+                      {'subtitle' in item && item.subtitle && (
                         <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
                       )}
                     </View>
@@ -109,10 +109,10 @@ export default function SettingsScreen() {
                   <View style={styles.settingRight}>
                     {item.type === 'toggle' ? (
                       <Switch
-                        value={item.value}
-                        onValueChange={item.onToggle}
+                        value={'value' in item ? item.value : false}
+                        onValueChange={'onToggle' in item ? item.onToggle : () => {}}
                         trackColor={{ false: theme.colors.neutral[300], true: theme.colors.primary[200] }}
-                        thumbColor={item.value ? theme.colors.primary[500] : theme.colors.neutral[400]}
+                        thumbColor={('value' in item ? item.value : false) ? theme.colors.primary[500] : theme.colors.neutral[400]}
                       />
                     ) : (
                       <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
@@ -141,10 +141,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background.secondary,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: theme.spacing.lg,
-  },
   header: {
     marginBottom: theme.spacing.xl,
   },
@@ -157,6 +153,10 @@ const styles = StyleSheet.create({
     ...theme.typography.textStyles.body1,
     color: theme.colors.text.secondary,
   },
+  scrollContent: {
+    flexGrow: 1,
+    padding: theme.spacing.lg,
+  },
   settingsSection: {
     marginBottom: theme.spacing['3xl'],
   },
@@ -167,8 +167,6 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   settingsGroup: {
-    backgroundColor: theme.colors.background.primary,
-    borderRadius: 12,
     overflow: 'hidden',
     ...theme.components.card,
   },
@@ -217,13 +215,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   logoutButton: {
-    backgroundColor: theme.colors.error,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.lg,
-    borderRadius: 12,
     ...theme.components.card,
+    backgroundColor: theme.colors.error[500],
   },
   logoutButtonText: {
     ...theme.typography.textStyles.h5,

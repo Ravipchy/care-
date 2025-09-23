@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigation';
 import { theme } from '../theme';
+
+type AppointmentsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Appointments'>;
 
 // Sample appointment data
 const appointments = [
@@ -53,6 +58,7 @@ const appointments = [
 ];
 
 export default function AppointmentsScreen() {
+  const navigation = useNavigation<AppointmentsScreenNavigationProp>();
   const [selectedTab, setSelectedTab] = useState('Upcoming');
 
   const filteredAppointments = appointments.filter(appointment => {
@@ -61,14 +67,7 @@ export default function AppointmentsScreen() {
   });
 
   const handleReschedule = (appointment: any) => {
-    Alert.alert(
-      'Reschedule Appointment',
-      `Reschedule appointment with ${appointment.doctor}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Reschedule', onPress: () => Alert.alert('Success', 'Appointment rescheduled successfully!') }
-      ]
-    );
+    navigation.navigate('RescheduleAppointment', { appointmentId: appointment.id.toString() });
   };
 
   const handleCancel = (appointment: any) => {
@@ -128,11 +127,19 @@ export default function AppointmentsScreen() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionButton}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => navigation.navigate('NearbyDoctors')}
+            activeOpacity={0.7}
+          >
             <Ionicons name="add" size={20} color={theme.colors.primary[500]} />
             <Text style={styles.quickActionText}>Book New Appointment</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionButton}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => navigation.navigate('Telemedicine')}
+            activeOpacity={0.7}
+          >
             <Ionicons name="videocam" size={20} color={theme.colors.secondary[500]} />
             <Text style={styles.quickActionText}>Join Video Call</Text>
           </TouchableOpacity>
@@ -170,7 +177,7 @@ export default function AppointmentsScreen() {
                 <View style={styles.statusContainer}>
                   <View style={[
                     styles.statusBadge,
-                    { backgroundColor: getStatusColor(appointment.status) }
+                    { backgroundColor: getStatusColor(appointment.status)[500] }
                   ]}>
                     <Text style={styles.statusText}>{appointment.status}</Text>
                   </View>
@@ -191,7 +198,7 @@ export default function AppointmentsScreen() {
                     style={[styles.actionButton, styles.cancelButton]}
                     onPress={() => handleCancel(appointment)}
                   >
-                    <Ionicons name="close" size={16} color={theme.colors.error} />
+                    <Ionicons name="close" size={16} color={theme.colors.error[500]} />
                     <Text style={[styles.actionButtonText, styles.cancelButtonText]}>Cancel</Text>
                   </TouchableOpacity>
                 </View>
@@ -208,7 +215,11 @@ export default function AppointmentsScreen() {
             <Text style={styles.emptyDescription}>
               {selectedTab === 'All' ? 'You don\'t have any appointments yet.' : `You don't have any ${selectedTab.toLowerCase()} appointments.`}
             </Text>
-            <TouchableOpacity style={styles.bookButton}>
+            <TouchableOpacity 
+              style={styles.bookButton}
+              onPress={() => navigation.navigate('NearbyDoctors')}
+              activeOpacity={0.7}
+            >
               <Text style={styles.bookButtonText}>Book New Appointment</Text>
             </TouchableOpacity>
           </View>
@@ -223,10 +234,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background.secondary,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: theme.spacing.lg,
-  },
   header: {
     marginBottom: theme.spacing.xl,
   },
@@ -238,6 +245,10 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     ...theme.typography.textStyles.body1,
     color: theme.colors.text.secondary,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: theme.spacing.lg,
   },
   tabContainer: {
     marginBottom: theme.spacing.xl,
@@ -268,13 +279,10 @@ const styles = StyleSheet.create({
   },
   quickActionButton: {
     flex: 1,
-    backgroundColor: theme.colors.background.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.lg,
     marginHorizontal: theme.spacing.xs,
-    borderRadius: 12,
     ...theme.components.card,
   },
   quickActionText: {
@@ -376,7 +384,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.error + '20',
   },
   cancelButtonText: {
-    color: theme.colors.error,
+    color: theme.colors.error[500],
   },
   emptyState: {
     alignItems: 'center',

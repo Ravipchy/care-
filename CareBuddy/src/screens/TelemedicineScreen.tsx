@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,11 +8,19 @@ import {
   Image, 
   TextInput, 
   Alert,
-  Modal
+  Modal,
+  PermissionsAndroid,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import MockVideoCallComponent from '../components/MockVideoCallComponent';
+import WebRTCTest from '../components/WebRTCTest';
+import SimpleWebRTCTest from '../components/SimpleWebRTCTest';
+import BasicWebRTCTest from '../components/BasicWebRTCTest';
+import { firebaseSignalingService, CallSession } from '../services/FirebaseSignalingService';
+import { useAuth } from '../contexts/AuthContext';
 
 // Sample doctors available for telemedicine
 const availableDoctors = [
@@ -74,13 +82,106 @@ const chatMessages = [
 ];
 
 export default function TelemedicineScreen() {
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const { user, isAuthenticated, signIn } = useAuth();
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [isVideoCall, setIsVideoCall] = useState(false);
   const [isChatMode, setIsChatMode] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [patientName, setPatientName] = useState('');
   const [symptoms, setSymptoms] = useState('');
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [incomingCalls, setIncomingCalls] = useState<CallSession[]>([]);
+  const [isDoctor, setIsDoctor] = useState(false); // This would be determined by user role
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [testMode, setTestMode] = useState(false);
+
+  useEffect(() => {
+    requestPermissions();
+    setupIncomingCallListener();
+    
+    // Auto-signin if not authenticated
+    if (!isAuthenticated) {
+      signIn();
+    }
+    
+    return () => {
+      firebaseSignalingService.cleanup();
+    };
+  }, [isAuthenticated, signIn]);
+
+  const requestPermissions = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        ]);
+        
+        const cameraGranted = granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+        const audioGranted = granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
+        
+        if (cameraGranted && audioGranted) {
+          setPermissionsGranted(true);
+        } else {
+          Alert.alert(
+            'Permissions Required',
+            'Camera and microphone permissions are required for video calls. Please enable them in settings.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        // iOS permissions are handled automatically by the mock implementation
+        setPermissionsGranted(true);
+      }
+    } catch (error) {
+      console.error('Permission error:', error);
+      Alert.alert('Error', 'Failed to request permissions');
+    }
+  };
+
+  const setupIncomingCallListener = () => {
+    if (isDoctor) {
+      // Listen for incoming calls (for doctors)
+      firebaseSignalingService.listenForIncomingCalls(
+        'current-doctor-id', // This would be the actual doctor ID
+        (callSession: CallSession) => {
+          setIncomingCalls((prev: CallSession[]) => [...prev, callSession]);
+          showIncomingCallAlert(callSession);
+        }
+      );
+    }
+  };
+
+  const showIncomingCallAlert = (callSession: CallSession) => {
+    Alert.alert(
+      'Incoming Call',
+      `Patient wants to start a video consultation`,
+      [
+        { text: 'Decline', style: 'cancel' },
+        { 
+          text: 'Accept', 
+          onPress: () => acceptIncomingCall(callSession)
+        }
+      ]
+    );
+  };
+
+  const acceptIncomingCall = async (callSession: CallSession) => {
+    try {
+      await firebaseSignalingService.joinCallSession(callSession.id);
+      setCurrentCallId(callSession.id);
+      setSelectedDoctor({
+        id: callSession.patientId,
+        name: 'Patient',
+        specialty: 'General Consultation'
+      });
+      setIsVideoCall(true);
+      setIncomingCalls((prev: CallSession[]) => prev.filter((call: CallSession) => call.id !== callSession.id));
+    } catch (error) {
+      Alert.alert('Error', 'Failed to join call');
+    }
+  };
 
   const handleBookConsultation = (doctor: any) => {
     if (!doctor.available) {
@@ -91,10 +192,36 @@ export default function TelemedicineScreen() {
     setShowBookingModal(true);
   };
 
-  const handleStartConsultation = (type: 'video' | 'chat') => {
+  const handleStartConsultation = async (type: 'video' | 'chat') => {
     if (type === 'video') {
-      setIsVideoCall(true);
-      setIsChatMode(false);
+      if (!permissionsGranted) {
+        Alert.alert(
+          'Permissions Required',
+          'Camera and microphone permissions are required for video calls. Please enable them in settings.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      try {
+        if (isDoctor) {
+          // Doctor joining existing call
+          if (currentCallId) {
+            setIsVideoCall(true);
+            setIsChatMode(false);
+          } else {
+            Alert.alert('Error', 'No call to join');
+          }
+        } else {
+          // Patient starting new call
+          const callId = await firebaseSignalingService.createCallSession(selectedDoctor.id);
+          setCurrentCallId(callId);
+          setIsVideoCall(true);
+          setIsChatMode(false);
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to start video call');
+      }
     } else {
       setIsChatMode(true);
       setIsVideoCall(false);
@@ -102,10 +229,25 @@ export default function TelemedicineScreen() {
     setShowBookingModal(false);
   };
 
-  const handleEndCall = () => {
-    setIsVideoCall(false);
-    setIsChatMode(false);
-    setSelectedDoctor(null);
+  const handleEndCall = async () => {
+    try {
+      if (currentCallId) {
+        await firebaseSignalingService.endCallSession(currentCallId);
+      }
+    } catch (error) {
+      console.error('Error ending call:', error);
+    } finally {
+      setIsVideoCall(false);
+      setIsChatMode(false);
+      setSelectedDoctor(null);
+      setCurrentCallId(null);
+    }
+  };
+
+  const handleVideoCallError = (error: string) => {
+    Alert.alert('Video Call Error', error, [
+      { text: 'OK', onPress: handleEndCall }
+    ]);
   };
 
   const handleSendMessage = () => {
@@ -134,36 +276,28 @@ export default function TelemedicineScreen() {
   };
 
   // Video Call Interface
-  if (isVideoCall) {
+  // Show loading screen while authenticating
+  if (!isAuthenticated) {
     return (
-      <SafeAreaView style={styles.videoCallContainer}>
-        <View style={styles.videoCallHeader}>
-          <TouchableOpacity style={styles.endCallButton} onPress={handleEndCall}>
-            <Ionicons name="call" size={24} color={theme.colors.text.inverse} />
-          </TouchableOpacity>
-          <View style={styles.callInfo}>
-            <Text style={styles.callTitle}>Video Call with {selectedDoctor?.name}</Text>
-            <Text style={styles.callSubtitle}>{selectedDoctor?.specialty}</Text>
-          </View>
-          <View style={styles.callActions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="mic" size={20} color={theme.colors.text.inverse} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="videocam" size={20} color={theme.colors.text.inverse} />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        <View style={styles.videoContainer}>
-          <View style={styles.doctorVideo}>
-            <Text style={styles.videoPlaceholder}>Doctor's Video</Text>
-          </View>
-          <View style={styles.patientVideo}>
-            <Text style={styles.videoPlaceholder}>Your Video</Text>
-          </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Connecting to CareBuddy...</Text>
         </View>
       </SafeAreaView>
+    );
+  }
+
+  if (isVideoCall && selectedDoctor && currentCallId) {
+    return (
+      <MockVideoCallComponent
+        doctorId={selectedDoctor.id}
+        doctorName={selectedDoctor.name}
+        doctorSpecialty={selectedDoctor.specialty}
+        isPatient={!isDoctor}
+        callId={currentCallId}
+        onCallEnd={handleEndCall}
+        onError={handleVideoCallError}
+      />
     );
   }
 
@@ -228,17 +362,92 @@ export default function TelemedicineScreen() {
           <Text style={styles.headerSubtitle}>Consult with doctors online via video or chat</Text>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionButton}>
-            <Ionicons name="videocam" size={24} color={theme.colors.primary[500]} />
-            <Text style={styles.quickActionText}>Video Consultation</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionButton}>
-            <Ionicons name="chatbubbles" size={24} color={theme.colors.secondary[500]} />
-            <Text style={styles.quickActionText}>Chat with Doctor</Text>
+        {/* Test Mode Toggle */}
+        <View style={styles.testModeContainer}>
+          <TouchableOpacity 
+            style={[styles.testModeButton, testMode && styles.testModeButtonActive]} 
+            onPress={() => setTestMode(!testMode)}
+          >
+            <Text style={[styles.testModeText, testMode && styles.testModeTextActive]}>
+              {testMode ? 'Exit Test Mode' : 'WebRTC Test Mode'}
+            </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Test Mode Content */}
+        {testMode && (
+          <View style={styles.testContainer}>
+            <BasicWebRTCTest />
+          </View>
+        )}
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => {
+              if (isDoctor) {
+                Alert.alert('Doctor Mode', 'You are in doctor mode. Patients will call you directly.');
+              } else {
+                Alert.alert('Video Call', 'Select a doctor below to start a video consultation.');
+              }
+            }}
+          >
+            <Ionicons name="videocam" size={24} color={theme.colors.primary[500]} />
+            <Text style={styles.quickActionText}>
+              {isDoctor ? 'Waiting for Calls' : 'Video Consultation'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => {
+              if (isDoctor) {
+                Alert.alert('Doctor Mode', 'You are in doctor mode. Patients will call you directly.');
+              } else {
+                Alert.alert('Chat', 'Select a doctor below to start a chat consultation.');
+              }
+            }}
+          >
+            <Ionicons name="chatbubbles" size={24} color={theme.colors.secondary[500]} />
+            <Text style={styles.quickActionText}>
+              {isDoctor ? 'Chat Mode' : 'Chat with Doctor'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Incoming Calls (for doctors) */}
+        {isDoctor && incomingCalls.length > 0 && (
+          <View style={styles.incomingCallsSection}>
+            <Text style={styles.sectionTitle}>Incoming Calls ({incomingCalls.length})</Text>
+            {incomingCalls.map((call: CallSession) => (
+              <View key={call.id} style={styles.incomingCallCard}>
+                <View style={styles.incomingCallInfo}>
+                  <Text style={styles.incomingCallTitle}>Incoming Video Call</Text>
+                  <Text style={styles.incomingCallSubtitle}>Patient ID: {call.patientId}</Text>
+                  <Text style={styles.incomingCallTime}>
+                    {new Date(call.createdAt).toLocaleTimeString()}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.acceptCallButton}
+                  onPress={() => acceptIncomingCall(call)}
+                >
+                  <Ionicons name="call" size={20} color={theme.colors.text.inverse} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Permission Status */}
+        {!permissionsGranted && (
+          <View style={styles.permissionWarning}>
+            <Ionicons name="warning" size={20} color={theme.colors.warning[500]} />
+            <Text style={styles.permissionWarningText}>
+              Camera and microphone permissions are required for video calls
+            </Text>
+          </View>
+        )}
 
         {/* Available Doctors */}
         <View style={styles.doctorsSection}>
@@ -271,7 +480,7 @@ export default function TelemedicineScreen() {
                   <View style={styles.availabilityContainer}>
                     <View style={[
                       styles.availabilityDot,
-                      { backgroundColor: doctor.available ? theme.colors.success : theme.colors.error }
+                      { backgroundColor: doctor.available ? '#10b981' : '#ef4444' }
                     ]} />
                     <Text style={styles.availabilityText}>
                       {doctor.available ? `Available ${doctor.nextAvailable}` : 'Not Available'}
@@ -374,14 +583,18 @@ const styles = StyleSheet.create({
   },
   quickActionButton: {
     flex: 1,
-    backgroundColor: theme.colors.background.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.lg,
     marginHorizontal: theme.spacing.xs,
+    backgroundColor: '#ffffff',
+    padding: theme.spacing.lg,
     borderRadius: 12,
-    ...theme.components.card,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   quickActionText: {
     ...theme.typography.textStyles.label,
@@ -507,10 +720,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: theme.spacing.lg,
-    backgroundColor: theme.colors.neutral[800],
+    backgroundColor: '#1f2937',
   },
   endCallButton: {
-    backgroundColor: theme.colors.error,
+    backgroundColor: '#ef4444',
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -709,5 +922,110 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     ...theme.typography.textStyles.body1,
     fontWeight: '600',
+  },
+  // Incoming Calls Styles
+  incomingCallsSection: {
+    marginBottom: theme.spacing.xl,
+  },
+  incomingCallCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f9ff',
+    padding: theme.spacing.lg,
+    borderRadius: 12,
+    marginBottom: theme.spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary[500],
+  },
+  incomingCallInfo: {
+    flex: 1,
+  },
+  incomingCallTitle: {
+    ...theme.typography.textStyles.h5,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+  },
+  incomingCallSubtitle: {
+    ...theme.typography.textStyles.body2,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
+  },
+  incomingCallTime: {
+    ...theme.typography.textStyles.caption,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
+  },
+  acceptCallButton: {
+    backgroundColor: theme.colors.success[500],
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: theme.spacing.md,
+  },
+  // Permission Warning Styles
+  permissionWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    padding: theme.spacing.md,
+    borderRadius: 8,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  permissionWarningText: {
+    ...theme.typography.textStyles.body2,
+    color: '#b45309',
+    marginLeft: theme.spacing.sm,
+    flex: 1,
+  },
+  // Test Mode Styles
+  testModeContainer: {
+    marginBottom: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  testModeButton: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  testModeButtonActive: {
+    backgroundColor: theme.colors.primary[500],
+    borderColor: theme.colors.primary[500],
+  },
+  testModeText: {
+    ...theme.typography.textStyles.body2,
+    color: theme.colors.text.secondary,
+    fontWeight: '500',
+  },
+  testModeTextActive: {
+    color: '#ffffff',
+  },
+  testContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background.secondary,
+  },
+  loadingText: {
+    ...theme.typography.textStyles.h4,
+    color: theme.colors.text.primary,
+    textAlign: 'center',
   },
 });

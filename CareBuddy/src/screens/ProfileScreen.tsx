@@ -12,7 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigation';
 import { theme } from '../theme';
+
+type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Profile'>;
 
 // Sample user data
 const userData = {
@@ -43,13 +48,13 @@ const recentActivity = [
 ];
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [isEditing, setIsEditing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editedData, setEditedData] = useState(userData);
 
   const handleEditProfile = () => {
-    setEditedData(userData);
-    setShowEditModal(true);
+    navigation.navigate('EditProfile');
   };
 
   const handleSaveProfile = () => {
@@ -64,8 +69,20 @@ export default function ProfileScreen() {
       'Choose how you want to update your profile photo',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Take Photo', onPress: () => Alert.alert('Success', 'Photo taken successfully!') },
-        { text: 'Choose from Gallery', onPress: () => Alert.alert('Success', 'Photo selected successfully!') }
+        { 
+          text: 'Take Photo', 
+          onPress: () => {
+            // In a real app, you would use expo-image-picker here
+            Alert.alert('Success', 'Photo taken successfully! Profile updated.');
+          }
+        },
+        { 
+          text: 'Choose from Gallery', 
+          onPress: () => {
+            // In a real app, you would use expo-image-picker here
+            Alert.alert('Success', 'Photo selected successfully! Profile updated.');
+          }
+        }
       ]
     );
   };
@@ -83,18 +100,18 @@ export default function ProfileScreen() {
   const getActivityColor = (type: string) => {
     switch (type) {
       case 'Appointment': return theme.colors.primary[500];
-      case 'Lab Test': return theme.colors.warning;
+      case 'Lab Test': return theme.colors.warning[500];
       case 'Prescription': return theme.colors.secondary[500];
-      case 'Telemedicine': return theme.colors.info;
+      case 'Telemedicine': return theme.colors.info[500];
       default: return theme.colors.neutral[500];
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Completed': return theme.colors.success;
-      case 'Results Available': return theme.colors.info;
-      case 'Ready for Pickup': return theme.colors.warning;
+      case 'Completed': return theme.colors.success[500];
+      case 'Results Available': return theme.colors.info[500];
+      case 'Ready for Pickup': return theme.colors.warning[500];
       default: return theme.colors.neutral[500];
     }
   };
@@ -180,20 +197,36 @@ export default function ProfileScreen() {
         <View style={styles.actionsSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('MedicalHistory')}
+              activeOpacity={0.7}
+            >
               <Ionicons name="document" size={24} color={theme.colors.primary[500]} />
               <Text style={styles.actionText}>Medical Records</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Appointments')}
+              activeOpacity={0.7}
+            >
               <Ionicons name="calendar" size={24} color={theme.colors.secondary[500]} />
               <Text style={styles.actionText}>Appointments</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard}>
-              <Ionicons name="flask" size={24} color={theme.colors.warning} />
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('LabTest')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="flask" size={24} color={theme.colors.warning[500]} />
               <Text style={styles.actionText}>Lab Results</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCard}>
-              <Ionicons name="medical" size={24} color={theme.colors.error} />
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Pharmacy')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="medical" size={24} color={theme.colors.error[500]} />
               <Text style={styles.actionText}>Prescriptions</Text>
             </TouchableOpacity>
           </View>
@@ -496,9 +529,6 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: '48%',
-    backgroundColor: theme.colors.background.primary,
-    padding: theme.spacing.lg,
-    borderRadius: 12,
     alignItems: 'center',
     marginBottom: theme.spacing.md,
     ...theme.components.card,

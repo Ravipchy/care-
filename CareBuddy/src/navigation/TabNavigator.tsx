@@ -5,12 +5,19 @@ import { MainTabParamList } from '../types/navigation';
 import { theme } from '../theme';
 
 import HomeScreen from '../screens/HomeScreen';
-import DoctorsScreen from '../screens/DoctorsScreen';
+import NearbyDoctorsScreen from '../screens/NearbyDoctorsScreen';
 import PharmacyScreen from '../screens/PharmacyScreen';
 import AppointmentsScreen from '../screens/AppointmentsScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import MedicalHistoryScreen from '../screens/MedicalHistoryScreen';
+import LabTestScreen from '../screens/LabTestScreen';
+import AmbulanceScreen from '../screens/AmbulanceScreen';
+import HomeCareScreen from '../screens/HomeCareScreen';
+import AboutUsScreen from '../screens/AboutUsScreen';
+import TelemedicineScreen from '../screens/TelemedicineScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -24,7 +31,7 @@ export default function TabNavigator() {
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Doctors') {
-            iconName = focused ? 'medical' : 'medical-outline';
+            iconName = focused ? 'location' : 'location-outline';
           } else if (route.name === 'Pharmacy') {
             iconName = focused ? 'storefront' : 'storefront-outline';
           } else if (route.name === 'Appointments') {
@@ -35,6 +42,20 @@ export default function TabNavigator() {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          } else if (route.name === 'MedicalHistory') {
+            iconName = focused ? 'medical' : 'medical-outline';
+          } else if (route.name === 'LabTest') {
+            iconName = focused ? 'flask' : 'flask-outline';
+          } else if (route.name === 'Ambulance') {
+            iconName = focused ? 'car' : 'car-outline';
+          } else if (route.name === 'HomeCare') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'AboutUs') {
+            iconName = focused ? 'information-circle' : 'information-circle-outline';
+          } else if (route.name === 'Telemedicine') {
+            iconName = focused ? 'videocam' : 'videocam-outline';
           } else {
             iconName = 'help-outline';
           }
@@ -66,8 +87,8 @@ export default function TabNavigator() {
       />
       <Tab.Screen 
         name="Doctors" 
-        component={DoctorsScreen}
-        options={{ title: 'Doctors' }}
+        component={NearbyDoctorsScreen}
+        options={{ title: 'Nearby Doctors' }}
       />
       <Tab.Screen 
         name="Pharmacy" 

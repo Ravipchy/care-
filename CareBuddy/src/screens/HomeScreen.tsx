@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Ani
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { DrawerParamList } from '../types/navigation';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types/navigation';
 
-type HomeScreenNavigationProp = DrawerNavigationProp<DrawerParamList, 'MainTabs'>;
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -27,10 +27,10 @@ export default function HomeScreen() {
   const quickActions = [
     {
       id: 1,
-      title: 'Book Doctor',
+      title: 'Nearby Doctors',
       icon: 'medical',
       color: '#2196f3',
-      onPress: () => Alert.alert('Book Doctor', 'Opening Doctors page...'),
+      onPress: () => navigation.navigate('NearbyDoctors'),
     },
     {
       id: 2,
@@ -44,7 +44,7 @@ export default function HomeScreen() {
       title: 'Appointments',
       icon: 'calendar',
       color: '#9c27b0',
-      onPress: () => Alert.alert('Appointments', 'Opening Appointments page...'),
+      onPress: () => navigation.navigate('Appointments'),
     },
     {
       id: 4,
@@ -65,7 +65,7 @@ export default function HomeScreen() {
       title: 'Health Reports',
       icon: 'document-text',
       color: '#2196f3',
-      onPress: () => Alert.alert('Reports', 'Opening Reports page...'),
+      onPress: () => navigation.navigate('Reports'),
     },
     {
       id: 7,
@@ -95,10 +95,17 @@ export default function HomeScreen() {
   const handleEmergencyCall = () => {
     Alert.alert(
       'Emergency Call',
-      'Calling emergency services...',
+      'This will call emergency services (911). Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Call', style: 'destructive', onPress: () => console.log('Emergency call initiated') },
+        { 
+          text: 'Call 911', 
+          style: 'destructive', 
+          onPress: () => {
+            // In a real app, you would use Linking.openURL('tel:911')
+            Alert.alert('Emergency', 'Emergency call initiated. Please call 911 immediately if this is a real emergency.');
+          }
+        },
       ]
     );
   };
@@ -111,10 +118,18 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>CareBuddy</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon}>
+          <TouchableOpacity 
+            style={styles.headerIcon}
+            onPress={() => navigation.navigate('Messages')}
+            activeOpacity={0.7}
+          >
             <Ionicons name="notifications-outline" size={24} color="#212121" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
+          <TouchableOpacity 
+            style={styles.headerIcon}
+            onPress={() => navigation.navigate('Settings')}
+            activeOpacity={0.7}
+          >
             <Ionicons name="settings-outline" size={24} color="#212121" />
           </TouchableOpacity>
         </View>
@@ -145,7 +160,11 @@ export default function HomeScreen() {
                   {upcomingAppointment.doctorName} - {upcomingAppointment.date}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.bannerButton}>
+              <TouchableOpacity 
+                style={styles.bannerButton}
+                onPress={() => navigation.navigate('Appointments')}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="chevron-forward" size={16} color="#2196f3" />
               </TouchableOpacity>
             </View>

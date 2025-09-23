@@ -88,9 +88,30 @@ export default function ReportsScreen() {
   };
 
   const handleDownload = (report: any) => {
+    if (report.status !== 'Available') {
+      Alert.alert('Not Available', 'This report is not available for download yet.');
+      return;
+    }
+    
     Alert.alert('Download', `Download ${report.title}?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Download', onPress: () => Alert.alert('Success', 'Report downloaded successfully!') }
+      { 
+        text: 'Download', 
+        onPress: () => {
+          // Simulate download process
+          Alert.alert('Downloading...', 'Please wait while we prepare your report for download.', [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Simulate successful download
+                setTimeout(() => {
+                  Alert.alert('Success', `${report.title} has been downloaded successfully!\n\nFile saved to Downloads folder.`);
+                }, 1000);
+              }
+            }
+          ]);
+        }
+      }
     ]);
   };
 
@@ -192,7 +213,7 @@ export default function ReportsScreen() {
                 <View style={styles.statusContainer}>
                   <View style={[
                     styles.statusBadge,
-                    { backgroundColor: getStatusColor(report.status) }
+                    { backgroundColor: getStatusColor(report.status)[500] }
                   ]}>
                     <Text style={styles.statusText}>{report.status}</Text>
                   </View>
@@ -238,8 +259,8 @@ export default function ReportsScreen() {
                   style={styles.actionButton}
                   onPress={() => handleDelete(report)}
                 >
-                  <Ionicons name="trash" size={16} color={theme.colors.error} />
-                  <Text style={[styles.actionButtonText, { color: theme.colors.error }]}>
+                  <Ionicons name="trash" size={16} color={theme.colors.error[500]} />
+                  <Text style={[styles.actionButtonText, { color: theme.colors.error[500] }]}>
                     Delete
                   </Text>
                 </TouchableOpacity>
@@ -297,7 +318,7 @@ export default function ReportsScreen() {
                 style={styles.uploadOption}
                 onPress={() => handleUploadFile('PDF File')}
               >
-                <Ionicons name="document" size={30} color={theme.colors.warning} />
+                <Ionicons name="document" size={30} color={theme.colors.warning[500]} />
                 <Text style={styles.uploadOptionText}>Upload PDF</Text>
                 <Text style={styles.uploadOptionSubtext}>Select PDF file</Text>
               </TouchableOpacity>
@@ -320,10 +341,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background.secondary,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: theme.spacing.lg,
-  },
   header: {
     marginBottom: theme.spacing.xl,
   },
@@ -336,15 +353,17 @@ const styles = StyleSheet.create({
     ...theme.typography.textStyles.body1,
     color: theme.colors.text.secondary,
   },
+  scrollContent: {
+    flexGrow: 1,
+    padding: theme.spacing.lg,
+  },
   uploadButton: {
-    backgroundColor: theme.colors.primary[500],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.lg,
-    borderRadius: 12,
     marginBottom: theme.spacing.xl,
     ...theme.components.card,
+    backgroundColor: theme.colors.primary[500],
   },
   uploadButtonText: {
     ...theme.typography.textStyles.h5,

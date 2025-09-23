@@ -26,7 +26,22 @@ export default function MessagesScreen() {
 
         {/* Telemedicine Button */}
         <View style={styles.telemedicineSection}>
-          <TouchableOpacity style={styles.telemedicineButton}>
+          <TouchableOpacity 
+            style={styles.telemedicineButton}
+            onPress={() => {
+              Alert.alert(
+                'Start Video Call',
+                'Starting a video call with your healthcare provider...',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Start Call', onPress: () => {
+                    Alert.alert('Video Call', 'Video call is now connecting...');
+                  }}
+                ]
+              );
+            }}
+            activeOpacity={0.8}
+          >
             <Ionicons name="videocam" size={30} color="#ffffff" />
             <Text style={styles.telemedicineButtonText}>Start Video Call</Text>
           </TouchableOpacity>
@@ -36,7 +51,24 @@ export default function MessagesScreen() {
         <View style={styles.conversationsSection}>
           <Text style={styles.sectionTitle}>Recent Conversations</Text>
           {conversations.map((conversation) => (
-            <TouchableOpacity key={conversation.id} style={styles.conversationCard}>
+            <TouchableOpacity 
+              key={conversation.id} 
+              style={styles.conversationCard}
+              onPress={() => {
+                // Simulate opening conversation
+                Alert.alert(
+                  'Open Conversation',
+                  `Opening conversation with ${conversation.doctor}...`,
+                  [
+                    { text: 'OK', onPress: () => {
+                      // In a real app, this would navigate to the chat screen
+                      Alert.alert('Chat', `Chat with ${conversation.doctor} is now open!`);
+                    }}
+                  ]
+                );
+              }}
+              activeOpacity={0.7}
+            >
               <View style={styles.conversationHeader}>
                 <View style={styles.doctorAvatar}>
                   <Ionicons name="person" size={25} color="#3498db" />
