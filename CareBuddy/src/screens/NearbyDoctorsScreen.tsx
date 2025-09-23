@@ -9,7 +9,8 @@ import {
   Dimensions,
   Platform,
   Animated,
-  PanResponder
+  PanResponder,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,8 @@ import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { RootStackParamList } from '../types/navigation';
 import { theme } from '../theme';
+import { useFamily, FamilyMember } from '../contexts/FamilyContext';
+import FamilyMemberSelector from '../components/FamilyMemberSelector';
 
 const { width, height } = Dimensions.get('window');
 
@@ -127,11 +130,14 @@ type NearbyDoctorsScreenNavigationProp = StackNavigationProp<RootStackParamList,
 
 export default function NearbyDoctorsScreen() {
   const navigation = useNavigation<NearbyDoctorsScreenNavigationProp>();
+  const { familyMembers, addFamilyMember } = useFamily();
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
   const [locationPermission, setLocationPermission] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const mapRef = useRef<MapView>(null);
   const cardAnimation = useRef(new Animated.Value(0)).current;
 
@@ -261,22 +267,31 @@ export default function NearbyDoctorsScreen() {
       Alert.alert('Not Available', 'This doctor is not available for booking at the moment.');
       return;
     }
+    setSelectedDoctor(doctor);
+    setShowBookingModal(true);
+  };
+
+  const handleConfirmBooking = () => {
+    if (!selectedMember) {
+      Alert.alert('Select Patient', 'Please select a family member for the appointment.');
+      return;
+    }
+    
     Alert.alert(
-      'Book Appointment',
-      `Book appointment with ${doctor.name}?`,
+      'Appointment Booked!',
+      `Appointment with ${selectedDoctor?.name} has been booked successfully for ${selectedMember.name}.\n\nPatient: ${selectedMember.name} (${selectedMember.relation})\nAge: ${selectedMember.age} years\nContact: ${selectedMember.contactNumber}\n\nYou will receive a confirmation call shortly.`,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Book Now', onPress: () => {
-          Alert.alert(
-            'Appointment Booked!',
-            `Your appointment with ${doctor.name} has been booked successfully. You will receive a confirmation call shortly.`,
-            [
-              { text: 'OK', onPress: () => navigation.navigate('Appointments') }
-            ]
-          );
+        { text: 'OK', onPress: () => {
+          setShowBookingModal(false);
+          setSelectedMember(null);
+          navigation.navigate('Appointments');
         }}
       ]
     );
+  };
+
+  const handleAddNewMember = () => {
+    navigation.navigate('Family' as any);
   };
 
   const fitToMarkers = () => {
@@ -635,6 +650,58 @@ export default function NearbyDoctorsScreen() {
           </View>
         </Animated.View>
       )}
+
+      {/* Booking Modal */}
+      <Modal
+        visible={showBookingModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowBookingModal(false)}
+      >
+        <View style={styles.bookingModalOverlay}>
+          <View style={styles.bookingModalContent}>
+            <View style={styles.bookingModalHeader}>
+              <Text style={styles.bookingModalTitle}>Book Appointment</Text>
+              <TouchableOpacity
+                style={styles.bookingCloseButton}
+                onPress={() => setShowBookingModal(false)}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedDoctor && (
+              <View style={styles.doctorInfoCard}>
+                <Text style={styles.doctorInfoName}>{selectedDoctor.name}</Text>
+                <Text style={styles.doctorInfoSpecialty}>{selectedDoctor.specialty}</Text>
+                <Text style={styles.doctorInfoFee}>Consultation Fee: ${selectedDoctor.consultationFee}</Text>
+              </View>
+            )}
+
+            <FamilyMemberSelector
+              selectedMember={selectedMember}
+              onSelectMember={setSelectedMember}
+              onAddNewMember={handleAddNewMember}
+              title="Select Patient"
+            />
+
+            <View style={styles.bookingModalActions}>
+              <TouchableOpacity
+                style={styles.bookingCancelButton}
+                onPress={() => setShowBookingModal(false)}
+              >
+                <Text style={styles.bookingCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.bookingConfirmButton}
+                onPress={handleConfirmBooking}
+              >
+                <Text style={styles.bookingConfirmButtonText}>Confirm Booking</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1012,5 +1079,94 @@ const styles = StyleSheet.create({
     ...theme.typography.textStyles.label,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  // Booking Modal Styles
+  bookingModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookingModalContent: {
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    shadowColor: theme.colors.shadow.dark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  bookingModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  bookingModalTitle: {
+    ...theme.typography.textStyles.h4,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+  },
+  bookingCloseButton: {
+    padding: theme.spacing.sm,
+  },
+  doctorInfoCard: {
+    backgroundColor: theme.colors.primary[50],
+    margin: theme.spacing.lg,
+    padding: theme.spacing.lg,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary[500],
+  },
+  doctorInfoName: {
+    ...theme.typography.textStyles.h5,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
+  },
+  doctorInfoSpecialty: {
+    ...theme.typography.textStyles.body1,
+    color: theme.colors.primary[500],
+    fontWeight: '500',
+    marginBottom: theme.spacing.xs,
+  },
+  doctorInfoFee: {
+    ...theme.typography.textStyles.body2,
+    color: theme.colors.text.secondary,
+  },
+  bookingModalActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border.light,
+  },
+  bookingCancelButton: {
+    flex: 1,
+    backgroundColor: theme.colors.background.tertiary,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bookingCancelButtonText: {
+    ...theme.typography.textStyles.h6,
+    color: theme.colors.text.secondary,
+    fontWeight: '600',
+  },
+  bookingConfirmButton: {
+    flex: 1,
+    backgroundColor: theme.colors.primary[500],
+    paddingVertical: theme.spacing.lg,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bookingConfirmButtonText: {
+    ...theme.typography.textStyles.h6,
+    color: theme.colors.text.inverse,
+    fontWeight: '600',
   },
 });

@@ -14,6 +14,7 @@ import UploadPrescriptionScreen from '../screens/UploadPrescriptionScreen';
 import RescheduleAppointmentScreen from '../screens/RescheduleAppointmentScreen';
 import AppointmentsScreen from '../screens/AppointmentsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import FamilyScreen from '../screens/FamilyScreen';
 import MedicalHistoryScreen from '../screens/MedicalHistoryScreen';
 import LabTestScreen from '../screens/LabTestScreen';
 import AmbulanceScreen from '../screens/AmbulanceScreen';
@@ -79,6 +80,10 @@ export default function AppNavigator() {
       <Stack.Screen 
         name="Profile" 
         component={ProfileScreen}
+      />
+      <Stack.Screen 
+        name="Family" 
+        component={FamilyScreen}
       />
       <Stack.Screen 
         name="MedicalHistory" 

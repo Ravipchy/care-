@@ -199,10 +199,18 @@ export default function ProfileScreen() {
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={styles.actionCard}
+              onPress={() => navigation.navigate('Family' as any)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="people" size={24} color={theme.colors.primary[500]} />
+              <Text style={styles.actionText}>Family Members</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionCard}
               onPress={() => navigation.navigate('MedicalHistory')}
               activeOpacity={0.7}
             >
-              <Ionicons name="document" size={24} color={theme.colors.primary[500]} />
+              <Ionicons name="document" size={24} color={theme.colors.secondary[500]} />
               <Text style={styles.actionText}>Medical Records</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -210,7 +218,7 @@ export default function ProfileScreen() {
               onPress={() => navigation.navigate('Appointments')}
               activeOpacity={0.7}
             >
-              <Ionicons name="calendar" size={24} color={theme.colors.secondary[500]} />
+              <Ionicons name="calendar" size={24} color={theme.colors.warning[500]} />
               <Text style={styles.actionText}>Appointments</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -218,7 +226,7 @@ export default function ProfileScreen() {
               onPress={() => navigation.navigate('LabTest')}
               activeOpacity={0.7}
             >
-              <Ionicons name="flask" size={24} color={theme.colors.warning[500]} />
+              <Ionicons name="flask" size={24} color={theme.colors.info[500]} />
               <Text style={styles.actionText}>Lab Results</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -228,6 +236,14 @@ export default function ProfileScreen() {
             >
               <Ionicons name="medical" size={24} color={theme.colors.error[500]} />
               <Text style={styles.actionText}>Prescriptions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Settings')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings" size={24} color={theme.colors.neutral[500]} />
+              <Text style={styles.actionText}>Settings</Text>
             </TouchableOpacity>
           </View>
         </View>

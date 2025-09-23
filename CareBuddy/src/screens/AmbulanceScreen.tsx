@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { useFamily, FamilyMember } from '../contexts/FamilyContext';
+import FamilyMemberSelector from '../components/FamilyMemberSelector';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +64,7 @@ const emergencyContacts = [
 ];
 
 export default function AmbulanceScreen() {
+  const { familyMembers } = useFamily();
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState('');
@@ -70,6 +73,8 @@ export default function AmbulanceScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [providers, setProviders] = useState(ambulanceProviders);
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [showFamilySelector, setShowFamilySelector] = useState(false);
 
   const validateForm = () => {
     const errors = [];
@@ -109,9 +114,13 @@ export default function AmbulanceScreen() {
       return;
     }
 
+    const patientInfo = selectedMember 
+      ? `${selectedMember.name} (${selectedMember.relation})`
+      : patientName;
+
     Alert.alert(
       'Confirm Booking',
-      `Book ${selectedProvider?.name || 'Ambulance Service'} for ${patientName}?\n\nService: ${selectedProvider?.serviceType || 'Emergency Transport'}\nETA: ${selectedProvider?.estimatedTime || '15-20 mins'}\nContact: ${selectedProvider?.contact || 'Emergency Services'}`,
+      `Book ${selectedProvider?.name || 'Ambulance Service'} for ${patientInfo}?\n\nService: ${selectedProvider?.serviceType || 'Emergency Transport'}\nETA: ${selectedProvider?.estimatedTime || '15-20 mins'}\nContact: ${selectedProvider?.contact || 'Emergency Services'}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -128,9 +137,13 @@ export default function AmbulanceScreen() {
               );
             }
             
+            const confirmationMessage = selectedMember
+              ? `Ambulance booked successfully for ${selectedMember.name}!\n\nPatient: ${selectedMember.name} (${selectedMember.relation})\nAge: ${selectedMember.age} years\nContact: ${selectedMember.contactNumber}\n\n${selectedProvider?.name || 'Emergency Services'} will arrive in ${selectedProvider?.estimatedTime || '15-20 mins'}\n\nYou will receive a confirmation call shortly.`
+              : `Ambulance booked successfully!\n\n${selectedProvider?.name || 'Emergency Services'} will arrive in ${selectedProvider?.estimatedTime || '15-20 mins'}\n\nYou will receive a confirmation call shortly.`;
+            
             Alert.alert(
               'Booking Confirmed!', 
-              `Ambulance booked successfully!\n\n${selectedProvider?.name || 'Emergency Services'} will arrive in ${selectedProvider?.estimatedTime || '15-20 mins'}\n\nYou will receive a confirmation call shortly.`,
+              confirmationMessage,
               [
                 { 
                   text: 'OK', 
@@ -168,6 +181,16 @@ export default function AmbulanceScreen() {
     setLocation('');
     setSelectedProvider(null);
     setShowBookingForm(false);
+    setSelectedMember(null);
+  };
+
+  const handleAddNewMember = () => {
+    // In a real app, this would navigate to the family screen
+    Alert.alert('Add Family Member', 'Please go to Profile > Family Members to add a new family member.');
+  };
+
+  const handleSelectFromFamily = () => {
+    setShowFamilySelector(true);
   };
 
   return (
@@ -345,16 +368,35 @@ export default function AmbulanceScreen() {
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                 >
+                  {/* Family Member Selection */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Select Patient</Text>
+                    <TouchableOpacity
+                      style={styles.familySelectorButton}
+                      onPress={handleSelectFromFamily}
+                    >
+                      <View style={styles.familySelectorContent}>
+                        <Ionicons name="people" size={20} color={theme.colors.primary[500]} />
+                        <Text style={styles.familySelectorText}>
+                          {selectedMember ? `${selectedMember.name} (${selectedMember.relation})` : 'Select from family members'}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
+                    </TouchableOpacity>
+                    <Text style={styles.familySelectorSubtext}>Or enter manually below</Text>
+                  </View>
+
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Patient Name *</Text>
                     <TextInput
                       style={styles.input}
-                      value={patientName}
+                      value={selectedMember ? selectedMember.name : patientName}
                       onChangeText={setPatientName}
                       placeholder="Enter patient name"
                       placeholderTextColor={theme.colors.text.secondary}
                       autoCapitalize="words"
                       returnKeyType="next"
+                      editable={!selectedMember}
                     />
                   </View>
                   
@@ -363,25 +405,27 @@ export default function AmbulanceScreen() {
                       <Text style={styles.inputLabel}>Age *</Text>
                       <TextInput
                         style={styles.input}
-                        value={patientAge}
+                        value={selectedMember ? selectedMember.age.toString() : patientAge}
                         onChangeText={setPatientAge}
                         placeholder="Age"
                         keyboardType="numeric"
                         placeholderTextColor={theme.colors.text.secondary}
                         maxLength={3}
                         returnKeyType="next"
+                        editable={!selectedMember}
                       />
                     </View>
                     <View style={[styles.inputGroup, { flex: 1, marginLeft: theme.spacing.sm }]}>
                       <Text style={styles.inputLabel}>Phone *</Text>
                       <TextInput
                         style={styles.input}
-                        value={phoneNumber}
+                        value={selectedMember ? selectedMember.contactNumber : phoneNumber}
                         onChangeText={setPhoneNumber}
                         placeholder="Phone number"
                         keyboardType="phone-pad"
                         placeholderTextColor={theme.colors.text.secondary}
                         returnKeyType="next"
+                        editable={!selectedMember}
                       />
                     </View>
                   </View>
@@ -428,6 +472,43 @@ export default function AmbulanceScreen() {
                 </View>
               </View>
             </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
+        {/* Family Member Selector Modal */}
+        <Modal
+          visible={showFamilySelector}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowFamilySelector(false)}
+        >
+          <View style={styles.familyModalOverlay}>
+            <View style={styles.familyModalContent}>
+              <View style={styles.familyModalHeader}>
+                <Text style={styles.familyModalTitle}>Select Family Member</Text>
+                <TouchableOpacity
+                  style={styles.familyCloseButton}
+                  onPress={() => setShowFamilySelector(false)}
+                >
+                  <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+                </TouchableOpacity>
+              </View>
+
+              <FamilyMemberSelector
+                selectedMember={selectedMember}
+                onSelectMember={(member) => {
+                  setSelectedMember(member);
+                  if (member) {
+                    setPatientName(member.name);
+                    setPatientAge(member.age.toString());
+                    setPhoneNumber(member.contactNumber);
+                  }
+                  setShowFamilySelector(false);
+                }}
+                onAddNewMember={handleAddNewMember}
+                title="Select Patient"
+              />
+            </View>
           </View>
         </Modal>
       </ScrollView>
@@ -771,5 +852,66 @@ const styles = StyleSheet.create({
     ...theme.typography.textStyles.h6,
     color: theme.colors.text.inverse,
     fontWeight: '700',
+  },
+  // Family Selector Styles
+  familySelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: 12,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+  },
+  familySelectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  familySelectorText: {
+    ...theme.typography.textStyles.body1,
+    color: theme.colors.text.primary,
+    marginLeft: theme.spacing.md,
+    fontWeight: '500',
+  },
+  familySelectorSubtext: {
+    ...theme.typography.textStyles.caption,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+  },
+  familyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  familyModalContent: {
+    backgroundColor: theme.colors.background.primary,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    shadowColor: theme.colors.shadow.dark,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  familyModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  familyModalTitle: {
+    ...theme.typography.textStyles.h4,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+  },
+  familyCloseButton: {
+    padding: theme.spacing.sm,
   },
 });

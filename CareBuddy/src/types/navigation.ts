@@ -4,6 +4,7 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   Profile: undefined;
+  Family: undefined;
   MedicalHistory: undefined;
   LabTest: undefined;
   Ambulance: undefined;

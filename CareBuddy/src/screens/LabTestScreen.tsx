@@ -18,6 +18,8 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { theme } from '../theme';
+import { useFamily, FamilyMember } from '../contexts/FamilyContext';
+import FamilyMemberSelector from '../components/FamilyMemberSelector';
 
 type LabTestScreenNavigationProp = StackNavigationProp<RootStackParamList, 'LabTest'>;
 
@@ -187,12 +189,16 @@ const labCenters = [
 
 export default function LabTestScreen() {
   const navigation = useNavigation<LabTestScreenNavigationProp>();
+  const { familyMembers } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [cart, setCart] = useState<any[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadedPrescription, setUploadedPrescription] = useState<string | null>(null);
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<any>(null);
 
   const popularTests = labTests.filter(test => test.popular);
   
@@ -204,17 +210,44 @@ export default function LabTestScreen() {
   });
 
   const addToCart = (test: any) => {
-    const existingItem = cart.find(item => item.id === test.id);
+    setSelectedTest(test);
+    setShowBookingModal(true);
+  };
+
+  const handleConfirmBooking = () => {
+    if (!selectedMember) {
+      Alert.alert('Select Patient', 'Please select a family member for the test.');
+      return;
+    }
+    
+    if (!selectedTest) return;
+
+    const existingItem = cart.find(item => item.id === selectedTest.id);
     if (existingItem) {
       setCart(cart.map(item =>
-        item.id === test.id
+        item.id === selectedTest.id
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
     } else {
-      setCart([...cart, { ...test, quantity: 1 }]);
+      setCart([...cart, { ...selectedTest, quantity: 1 }]);
     }
-    Alert.alert('Added to Cart', `${test.name} has been added to your cart.`);
+    
+    Alert.alert(
+      'Test Booked!',
+      `${selectedTest.name} has been booked successfully for ${selectedMember.name}.\n\nPatient: ${selectedMember.name} (${selectedMember.relation})\nAge: ${selectedMember.age} years\nContact: ${selectedMember.contactNumber}\n\nPrice: $${selectedTest.price}\n\nYou will receive a confirmation call shortly.`,
+      [
+        { text: 'OK', onPress: () => {
+          setShowBookingModal(false);
+          setSelectedMember(null);
+          setSelectedTest(null);
+        }}
+      ]
+    );
+  };
+
+  const handleAddNewMember = () => {
+    navigation.navigate('Family' as any);
   };
 
   const uploadPrescription = () => {
@@ -453,6 +486,59 @@ export default function LabTestScreen() {
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Booking Modal */}
+      <Modal
+        visible={showBookingModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowBookingModal(false)}
+      >
+        <View style={styles.bookingModalOverlay}>
+          <View style={styles.bookingModalContent}>
+            <View style={styles.bookingModalHeader}>
+              <Text style={styles.bookingModalTitle}>Book Lab Test</Text>
+              <TouchableOpacity
+                style={styles.bookingCloseButton}
+                onPress={() => setShowBookingModal(false)}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedTest && (
+              <View style={styles.testInfoCard}>
+                <Text style={styles.testInfoName}>{selectedTest.name}</Text>
+                <Text style={styles.testInfoDescription}>{selectedTest.description}</Text>
+                <Text style={styles.testInfoPrice}>Price: ${selectedTest.price}</Text>
+                <Text style={styles.testInfoDuration}>Duration: {selectedTest.duration}</Text>
+              </View>
+            )}
+
+            <FamilyMemberSelector
+              selectedMember={selectedMember}
+              onSelectMember={setSelectedMember}
+              onAddNewMember={handleAddNewMember}
+              title="Select Patient"
+            />
+
+            <View style={styles.bookingModalActions}>
+              <TouchableOpacity
+                style={styles.bookingCancelButton}
+                onPress={() => setShowBookingModal(false)}
+              >
+                <Text style={styles.bookingCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.bookingConfirmButton}
+                onPress={handleConfirmBooking}
+              >
+                <Text style={styles.bookingConfirmButtonText}>Book Test</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -859,6 +945,100 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: theme.colors.text.secondary,
     ...theme.typography.textStyles.body1,
+    fontWeight: '600',
+  },
+  // Booking Modal Styles
+  bookingModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookingModalContent: {
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    shadowColor: theme.colors.shadow.dark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  bookingModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  bookingModalTitle: {
+    ...theme.typography.textStyles.h4,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+  },
+  bookingCloseButton: {
+    padding: theme.spacing.sm,
+  },
+  testInfoCard: {
+    backgroundColor: theme.colors.primary[50],
+    margin: theme.spacing.lg,
+    padding: theme.spacing.lg,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary[500],
+  },
+  testInfoName: {
+    ...theme.typography.textStyles.h5,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
+  },
+  testInfoDescription: {
+    ...theme.typography.textStyles.body2,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  testInfoPrice: {
+    ...theme.typography.textStyles.body1,
+    color: theme.colors.primary[500],
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
+  },
+  testInfoDuration: {
+    ...theme.typography.textStyles.body2,
+    color: theme.colors.text.secondary,
+  },
+  bookingModalActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border.light,
+  },
+  bookingCancelButton: {
+    flex: 1,
+    backgroundColor: theme.colors.background.tertiary,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bookingCancelButtonText: {
+    ...theme.typography.textStyles.h6,
+    color: theme.colors.text.secondary,
+    fontWeight: '600',
+  },
+  bookingConfirmButton: {
+    flex: 1,
+    backgroundColor: theme.colors.primary[500],
+    paddingVertical: theme.spacing.lg,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  bookingConfirmButtonText: {
+    ...theme.typography.textStyles.h6,
+    color: theme.colors.text.inverse,
     fontWeight: '600',
   },
 });
